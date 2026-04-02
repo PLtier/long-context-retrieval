@@ -33,6 +33,19 @@ class DataFormatter():
             self.doc_dataset = load_dataset(path, split=split, name=name)
             print("Loaded documents dataset from hf", path, "split:", split, "name:", name)
         self.doc_dataset = self.doc_dataset.map(self.parse_id)
+    
+    def load_from_jsonl(self, path: str, query_or_dataset: str) -> None:
+        """Loads a query or document dataset from a jsonl file."""
+        if query_or_dataset == "queries":
+            self.queries_dataset = load_dataset("json", data_files=path, split="train")
+            print("Loaded queries dataset from jsonl", path)
+            self.queries_dataset = self.queries_dataset.map(self.parse_id)
+        elif query_or_dataset == "documents":
+            self.doc_dataset = load_dataset("json", data_files=path, split="train")
+            print("Loaded documents dataset from jsonl", path)
+            self.doc_dataset = self.doc_dataset.map(self.parse_id)
+        else:
+            raise ValueError("query_or_dataset must be either 'queries' or 'documents'")
 
     @staticmethod
     def parse_id(sample):
