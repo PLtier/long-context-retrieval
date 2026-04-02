@@ -58,19 +58,53 @@ class AnthropicContextualPreprocessor:
     async def _contextualise_chunk(self, document: str, chunk: str) -> str:
         """Call OpenRouter async, respecting the concurrency semaphore."""
         prompt = self._get_contextualisation_prompt(document, chunk)
-        async with self._semaphore:
-            response = await self._client.chat.completions.create(
-                model=self.contextualisation_model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=400,
-                temperature=0.0,  # deterministic for retrieval tasks
-                extra_body={"reasoning": {"enabled": False}},
-            )
-        context: str = response.choices[0].message.content.strip()  # ty:ignore[unresolved-attribute]
-        print("====")
-        # print(f"Chunk: {chunk}")
-        # print(f"Contextualised chunk: {context}")  # Log the first 50 chars of the context
-        return context
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                async with self._semaphore:
+                    response = await self._client.chat.completions.create(
+                        model=self.contextualisation_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=400,
+                        temperature=0.0,  # deterministic for retrieval tasks
+                        extra_body={"reasoning": {"enabled": False}},
+                    )
+                # Defensive: check response structure and content
+                choices = getattr(response, "choices", None)
+                if not choices or not hasattr(choices[0], "message"):
+                    raise ValueError("No choices/message in response")
+                content = getattr(choices[0].message, "content", None)
+                if not content or not content.strip():
+                    raise ValueError("Empty content in response")
+                context = content.strip()
+                # logger.info(f"Contextualised successfully on attempt {attempt}.")
+                # logger.debug(f"Chunk: {chunk}")
+                # logger.debug(f"Contextualised chunk: {context}")
+                return context
+            except Exception as e:
+                # Identify retryable errors (rate limit, network, etc.)
+                err_str = str(e).lower()
+                is_retryable = (
+                    "rate limit" in err_str or
+                    "429" in err_str or
+                    "timeout" in err_str or
+                    "temporarily unavailable" in err_str or
+                    "connection" in err_str or
+                    "network" in err_str or
+                    "service unavailable" in err_str
+                )
+                if attempt < max_retries and is_retryable:
+                # if attempt < max_retries:
+                    wait_time = 2 ** (attempt - 1)
+                    logger.warning(f"[Retry {attempt}/{max_retries}] Contextualisation failed due to retryable error: {e}. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"[Skip] Contextualisation failed for chunk after {attempt} attempts. Error: {e}")
+                    break
+        # If we reach here, all attempts failed
+        logger.error("[Failure] Marking chunk as <CONTEXTUALISATION_FAILURE>.")
+        return "<CONTEXTUALISATION_FAILURE>"
 
     async def augment_documents(self, col: str = "chunk") -> None:
         """
