@@ -15,6 +15,7 @@ DATASETS: dict[str, dict] = {
     # "squad-conteb-train": {"split": "train"},
     "insurance": {},
     "example": {"is_query_local": True, "is_docs_local": True, "split": None},
+    "chunks": {"is_query_local": True, "is_docs_local": True, "split": None},
 }
 
 async def contextualise_datasets_async(
@@ -39,6 +40,7 @@ async def contextualise_datasets_async(
             data_formatter=ds_formatter,
             contextualisation_model=contextualisation_model,
         )
+        # ensure that the path is writeable before we start the async processing by saving an empty file there (this will error if the path is not writeable, preventing us from doing a long async run only to find out at the end that we can't save the results)
         await preprocessor.augment_documents()
         save_path = f"{save_dir}/{dataset}"
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
