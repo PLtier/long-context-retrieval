@@ -64,6 +64,7 @@ class AnthropicContextualPreprocessor:
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=400,
                 temperature=0.0,  # deterministic for retrieval tasks
+                extra_body={"reasoning": {"enabled": False}},
             )
         context: str = response.choices[0].message.content.strip()  # ty:ignore[unresolved-attribute]
         print("====")
