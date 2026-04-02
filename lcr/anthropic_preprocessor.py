@@ -1,9 +1,11 @@
 import asyncio
+import json
 import os
 from pathlib import Path
 
 from datasets import Dataset
 import dotenv
+from loguru import logger
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm as atqdm
 
@@ -56,7 +58,7 @@ class AnthropicContextualPreprocessor:
         )
 
     async def _contextualise_chunk(self, document: str, chunk: str) -> str:
-        """Call OpenRouter async, respecting the concurrency semaphore."""
+        """Call OpenRouter async, respecting the concurrency semaphore, with retries."""
         prompt = self._get_contextualisation_prompt(document, chunk)
         max_retries = 3
         for attempt in range(1, max_retries + 1):
@@ -136,7 +138,7 @@ class AnthropicContextualPreprocessor:
 
         print(f"Done. {total} chunks contextualised.")
 
-        self.augmented_documents = [{"chunk": ctx + " " + chunk, "chunk_id": doc_id} for (_, chunk, doc_id), ctx in zip(triples, contexts)]
+        self.augmented_documents = [{"chunk_id": doc_id, "chunk": ctx + " " + chunk} for (_, chunk, doc_id), ctx in zip(triples, contexts)]
 
     # save as a hugging face dataset, as it's more flexible for downstream use cases
 
@@ -145,9 +147,21 @@ class AnthropicContextualPreprocessor:
 
         if self.augmented_documents is None:
             raise ValueError("No augmented documents to save. Run augment_documents first.")
+        
+        # sort by chunk_id for easier inspection (optional)
+        self.augmented_documents.sort(key=lambda x: x["chunk_id"])
+
         data = {
-            "chunk": [doc["chunk"] for doc in self.augmented_documents],
             "chunk_id": [doc["chunk_id"] for doc in self.augmented_documents],
+            "chunk": [doc["chunk"] for doc in self.augmented_documents],
         }
         ds = Dataset.from_dict(data)
         ds.save_to_disk(path)
+        # also create a jsonl for easier inspection/debugging
+        jsonl_path = Path(path).parent / "augmented_documents.jsonl"
+        with jsonl_path.open("w", encoding="utf-8") as f:
+            for doc in self.augmented_documents:
+                json.dump(doc, f, ensure_ascii=False)
+                f.write("\n")
+
+        logger.info(f"Augmented documents saved to {path} and {jsonl_path}")
