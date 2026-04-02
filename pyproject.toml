@@ -16,14 +16,23 @@ classifiers = [
     
 ]
 dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "datasets>=4.8.4",
     "loguru",
+    "openai>=2.30.0",
     "pip",
     "python-dotenv",
+    "pytrec-eval>=0.5",
     "ruff",
     "tqdm",
     "typer",
 ]
 requires-python = "~=3.11.0"
+[project.optional-dependencies]
+cpu-deps = [ # to be run with --extra-index-url https://download.pytorch.org/whl/cpu
+    "sentence-transformers",
+    "torch",
+]
 
 
 [tool.ruff]
