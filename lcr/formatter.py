@@ -1,3 +1,5 @@
+from typing import Generator
+
 from datasets import load_dataset
 from datasets.load import load_from_disk
 import pandas as pd
@@ -79,5 +81,15 @@ class DataFormatter():
         df: pd.DataFrame = self.queries_dataset.to_pandas()
         df_by_doc_id = df.groupby("doc_id", sort=True)
         return list(df_by_doc_id["query"].apply(list)), list(df_by_doc_id["chunk_id"].apply(list))
+    
+    def get_chunks_with_context(self, col="chunk", context_col="context_chunks_ids") -> Generator[tuple[str, str, str], None, None]:
+        """Return the chunk and its context, concatenated. Generator"""
+        for chunk_id, chunk, context_ids in zip(self.doc_dataset['chunk_id'], self.doc_dataset[col], self.doc_dataset[context_col]):
+            if context_ids:
+                # context = " ".join([self.doc_dataset.loc[self.doc_dataset["chunk_id"] == cid, col].values[0] for cid in context_ids])  # ty:ignore[not-subscriptable]
+                context = " \n ".join(self.doc_dataset.filter(lambda x: x["chunk_id"] in context_ids)[col])
+                # print("Context chunks:", context)
+                # print("Chunk with context:", f"{self.doc_prompt}{chunk} {context}")
 
+                yield chunk_id, chunk, context
 
