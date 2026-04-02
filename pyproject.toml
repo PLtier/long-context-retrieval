@@ -29,11 +29,12 @@ dependencies = [
 ]
 requires-python = "~=3.11.0"
 [project.optional-dependencies]
-cpu-deps = [ # to be run with --extra-index-url https://download.pytorch.org/whl/cpu
+# for cpu: to be run with uv pip install .[deps] --extra-index-url https://download.pytorch.org/whl/cpu
+# for mps or gpu: with no extra
+deps = [ 
     "sentence-transformers",
     "torch",
 ]
-
 
 [tool.ruff]
 line-length = 99

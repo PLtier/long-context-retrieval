@@ -471,7 +471,7 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-cpu-deps = [
+deps = [
     { name = "sentence-transformers" },
     { name = "torch" },
 ]
@@ -486,12 +486,12 @@ requires-dist = [
     { name = "python-dotenv" },
     { name = "pytrec-eval", specifier = ">=0.5" },
     { name = "ruff" },
-    { name = "sentence-transformers", marker = "extra == 'cpu-deps'" },
-    { name = "torch", marker = "extra == 'cpu-deps'" },
+    { name = "sentence-transformers", marker = "extra == 'deps'" },
+    { name = "torch", marker = "extra == 'deps'" },
     { name = "tqdm" },
     { name = "typer" },
 ]
-provides-extras = ["cpu-deps"]
+provides-extras = ["deps", "mps-deps"]
 
 [[package]]
 name = "loguru"
