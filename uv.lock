@@ -460,6 +460,7 @@ source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "datasets" },
+    { name = "jinja2" },
     { name = "loguru" },
     { name = "openai" },
     { name = "pip" },
@@ -480,6 +481,7 @@ deps = [
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.14.3" },
     { name = "datasets", specifier = ">=4.8.4" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "loguru" },
     { name = "openai", specifier = ">=2.30.0" },
     { name = "pip" },
@@ -491,7 +493,7 @@ requires-dist = [
     { name = "tqdm" },
     { name = "typer" },
 ]
-provides-extras = ["deps", "mps-deps"]
+provides-extras = ["deps"]
 
 [[package]]
 name = "loguru"

@@ -6,6 +6,7 @@ from loguru import logger
 # Load environment variables from .env file if it exists
 load_dotenv()
 
+
 # Paths
 PROJ_ROOT = Path(__file__).resolve().parents[1]
 logger.info(f"PROJ_ROOT path is: {PROJ_ROOT}")
@@ -20,6 +21,9 @@ MODELS_DIR = PROJ_ROOT / "models"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
+
+# Prompts directory
+PROMPTS_DIR = PROJ_ROOT / "prompts"
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135
