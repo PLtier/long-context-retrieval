@@ -64,6 +64,7 @@ class QueryMapper:
                     raise ValueError("No choices/message in response")
                 content = getattr(choices[0].message, "content", None)
                 if not content or not content.strip():
+                    logger.info(response)
                     raise ValueError("Empty content in response")
                 return content.strip()
             except Exception as e:
