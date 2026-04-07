@@ -35,7 +35,7 @@ class QueryMapper:
         elif provider == "together":
             self._client = AsyncOpenAI(
                 api_key=os.getenv("TOGETHER_API_KEY"),
-                base_url="https://api.together.com/v1",
+                base_url="https://api.together.xyz/v1",
             )
         else:
             raise ValueError(f"Unsupported provider: {provider}")
