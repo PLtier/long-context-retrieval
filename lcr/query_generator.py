@@ -55,9 +55,11 @@ class QueryMapper:
                     response = await self._client.chat.completions.create(
                         model=self.llm_name,
                         messages=[{"role": "user", "content": prompt}],
-                        max_tokens=self.max_tokens,
+                        # max_tokens=self.max_tokens,
                         temperature=0.0,
-                        extra_body={"reasoning": {"enabled": False}},
+                        # extra_body={"reasoning": {"enabled": False}},
+                        reasoning_effort = "medium",
+
                     )
                 choices = getattr(response, "choices", None)
                 if not choices or not hasattr(choices[0], "message"):
