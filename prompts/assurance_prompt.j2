@@ -1,41 +1,45 @@
-You are given a **query**, a **referencing chunk** (or multiple), and **referenced chunks**.
+You are given a **query**, **context chunks** and a **target chunk** that references these context chunks.
 
 **Definitions:**
-- **Referencing chunk(s)**: The chunk(s) that contain references pointing to other provisions. They encode a relationship (exception, exclusion, extension, cross-application, etc.) between the referenced chunks.
-- **Referenced chunks**: The provisions pointed to by the referencing chunk(s). They carry the substantive normative content.
+- **Target chunk**: The chunk(s) that contain references pointing to other provisions. They encode a relationship (exception, exclusion, extension, cross-application, etc.) between the referenced chunks.
+- **Context chunks**: The provisions pointed to by the target chunk. They carry the substantive normative content.
 - **Sufficient**: A chunk or set of chunks is sufficient to answer the query if a knowledgeable reader could derive a **correct, complete, and non-misleading** answer from it alone, without consulting any other provision. A chunk that leads to an **incorrect or incomplete** answer also counts as **not sufficient**.
 
 ---
 
 **Your task**: Evaluate the query against the three criteria below. Reason briefly through each before giving a verdict.
 
-**Criterion 1 — Referencing chunk(s) alone:**
-Are all referencing chunks together sufficient to answer the query?
+**Criterion 1 — Target chunk alone:**
+Is the target chunk alone sufficient to answer the query?
 → Expected: **No**
 
-**Criterion 2 — Referenced chunks alone:**
-Are all referenced chunks together sufficient to answer the query?
+**Criterion 2 — Context chunks alone:**
+Given all context chunks together, are they sufficient (or any subset of them) to answer the query without the target chunk?
 → Expected: **No**
 
 **Criterion 3 — All chunks combined:**
-Are the referencing chunk(s) and referenced chunks together sufficient to answer the query?
+Are the target chunk and context chunks together sufficient to answer the query?
 → Expected: **Yes**
+
+**Final verdict: [Yes / No]**
+Yes = Criterion 1 is No AND Criterion 2 is No AND Criterion 3 is Yes
+No = Otherwise
 
 ---
 
 **Input:**
 - Query: {{query}}
-- Referencing chunk(s): {{chunk}}
-- Referenced chunks: {{context_chunks}}
+- Target chunk: {{chunk}}
+- Context chunks: {{context_chunks}}
 
 ---
 
 **Output format:**
 
-Criterion 1 — Referencing chunk(s) alone: [Yes / No]
+Criterion 1 — Target chunk alone: [Yes / No]
 <one sentence explanation>
 
-Criterion 2 — Referenced chunks alone: [Yes / No]
+Criterion 2 — Context chunks alone: [Yes / No]
 <one sentence explanation>
 
 Criterion 3 — All chunks combined: [Yes / No]
@@ -45,3 +49,31 @@ Final verdict: [Yes / No]
 <one sentence summary>
 
 Reason in English regardless of the language of the input chunks.
+
+
+You are given a **query**, **context chunks** and a **target chunk** that references these context chunks.
+
+**Definitions:**
+- **Target chunk**: The chunk(s) that contain references pointing to other provisions. They encode a relationship (exception, exclusion, extension, cross-application, etc.) between the referenced chunks.
+- **Context chunks**: The provisions pointed to by the target chunk. They carry the substantive normative content.
+- **Sufficient**: A chunk or set of chunks is sufficient to answer the query if a knowledgeable reader could derive a **correct, complete, and non-misleading** answer from it alone, without consulting any other provision. A chunk that leads to an **incorrect or incomplete** answer also counts as **not sufficient**.
+
+---
+
+**Your task**: Evaluate the query against the three criteria below. Reason briefly through each before giving a verdict.
+
+**Criterion 1 — Target chunk alone:**
+Is the target chunk alone sufficient to answer the query?
+→ Expected: **No**
+
+**Criterion 2 — Context chunks alone:**
+Given all context chunks together, are they sufficient (or any subset of them) to answer the query without the target chunk?
+→ Expected: **No**
+
+**Criterion 3 — All chunks combined:**
+Are the target chunk and context chunks together sufficient to answer the query?
+→ Expected: **Yes**
+
+**Final verdict: [Yes / No]**
+Yes = Criterion 1 is No AND Criterion 2 is No AND Criterion 3 is Yes
+No = Otherwise
