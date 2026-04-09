@@ -138,7 +138,7 @@ class QueryGenerator(QueryMapper):
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("query_prompt.j2")
+        self.template = self.jinja_env.get_template("query_prompt_v7.j2")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template
@@ -201,7 +201,7 @@ class QueryAssurance(QueryMapper):
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("assurance_prompt.j2")
+        self.template = self.jinja_env.get_template("assurance_prompt_v7.j2")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template
