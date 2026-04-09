@@ -53,12 +53,13 @@ class QueryMapper:
             try:
                 async with self._semaphore:
                     response = await self._client.chat.completions.create(
-                        model=self.llm_name,
+                        # model=self.llm_name,
+                        model="Qwen/Qwen3-235B-A22B-Instruct-2507-tput",
                         messages=[{"role": "user", "content": prompt}],
                         # max_tokens=self.max_tokens,
-                        temperature=0.0,
+                        # temperature=0.0,
                         # extra_body={"reasoning": {"enabled": False}},
-                        reasoning_effort = "medium",
+                        # reasoning_effort = "medium",
 
                     )
                 choices = getattr(response, "choices", None)
