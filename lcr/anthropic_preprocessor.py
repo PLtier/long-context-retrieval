@@ -53,7 +53,7 @@ class AnthropicContextualPreprocessor:
             "Please give a succinct context to situate this chunk within the "
             "overall document for the purposes of improving search retrieval of the chunk. "
             "Answer only with the context and nothing else."
-            "Answer in Polish"
+            "Answer in the language of the document. (Document and the chunk are in the same language)"
             # I think it's fine - let's go.
         )
 
