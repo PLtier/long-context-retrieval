@@ -27,6 +27,7 @@ dependencies = [
     "ruff",
     "tqdm",
     "typer",
+    "contextual_embeddings @ file:///home/mpj/repositories/contextual-embeddings",
 ]
 requires-python = "~=3.11.0"
 [project.optional-dependencies]
