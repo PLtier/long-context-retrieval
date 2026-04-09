@@ -53,10 +53,10 @@ class DataFormatter():
     def parse_id(sample):
         if "chunk_id" in sample:
             doc_id, internal_id = sample["chunk_id"].split("_")
-            return {"doc_id": doc_id, "internal_id": int(internal_id)}
+            return {"doc_id": doc_id, "internal_id": internal_id}
         elif "chunk_ids" in sample:
             doc_id, _ = sample["chunk_ids"][0].split("_")
-            internal_ids = [int(id_.split("_")[1]) for id_ in sample["chunk_ids"]]
+            internal_ids = [id_.split("_")[1] for id_ in sample["chunk_ids"]]
             return {"doc_id": doc_id, "internal_ids": internal_ids, "chunk_id": sample["chunk_ids"]}
         else:
             raise ValueError("chunk_id or chunk_ids not found in sample")
