@@ -18,6 +18,7 @@ async def _generate_queries(
     provider: str = "openrouter",
     start_from_checkpoint: bool = True,
     save_jsonl: bool = True,
+    chain_context: bool = False,
 ):
     for dataset in datasets:
         path = DATASETS[dataset].get("path", dataset)
@@ -33,7 +34,7 @@ async def _generate_queries(
             start_from_checkpoint=start_from_checkpoint,
             save_jsonl=save_jsonl,
         )
-        await queries_generator.generate()
+        await queries_generator.generate(chain_context=chain_context)
         print(f"Queries for dataset {dataset} generated and saved to {save_path}")
 
 @app.command()
@@ -46,10 +47,11 @@ def generate_queries(
     start_from_checkpoint: bool = True,
     save_jsonl: bool = True,
     provider: str = "openrouter",
+    chain_context: bool = False,
     
     # -----------------------------------------
 ):
-    asyncio.run(_generate_queries(documents_base_dir, datasets, save_path, llm, provider, start_from_checkpoint, save_jsonl))
+    asyncio.run(_generate_queries(documents_base_dir, datasets, save_path, llm, provider, start_from_checkpoint, save_jsonl, chain_context))
 
 @app.command()
 def assure_queries(

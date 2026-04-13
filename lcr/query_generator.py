@@ -153,7 +153,7 @@ class QueryGenerator(QueryMapper):
         result.update(fields)
         return result
 
-    async def generate(self):
+    async def generate(self, chain_context: bool = True):
         # Load checkpoint if needed
         existing = []
         existing_ids = set()
@@ -167,7 +167,7 @@ class QueryGenerator(QueryMapper):
         # Each pair: (chunk, context_chunks)
         # Assign a chunk_id (could be index or hash)
         pairs_with_id = []
-        for chunk_id, chunk, context_chunks in self.ds_formatter.get_chunks_with_context():
+        for chunk_id, chunk, context_chunks in self.ds_formatter.get_chunks_with_context(chain_context=chain_context):
             if chunk_id not in existing_ids:
                 pairs_with_id.append((chunk_id, chunk, context_chunks))
 
