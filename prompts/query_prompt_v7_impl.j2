@@ -1,0 +1,67 @@
+You are given a **target chunk** from a legal text and the **context chunks** it references.
+
+**Definitions:**
+- **Target chunk**: A provision that contains at least two references to other provisions within the same document.
+- **Context chunks**: The provisions explicitly referenced (pinpoint citations) by the target chunk. They carry substantive normative content.
+- **Neighboring chunks**: Provisions adjacent to the target chunk (i.e., the immediately preceding and maybe also following provisions in the document, coming from the same legal paragraph), if exist. They may or may not be explicitly referenced by the target chunk. 
+
+---
+
+**Your task**: Generate exactly one realistic, natural-language retrieval query satisfying ALL of the following conditions:
+
+1. **Semantically targets the context chunks** — a standard retriever will likely retrieve one or more context chunks in response, because they contain the substantive, keyword-rich content relevant to the query. The target chunk will *not* be retrieved on its own merit.
+
+2. **Cannot be correctly answered by the context chunks alone** — reading only the context chunks, a reader would arrive at an incomplete or outright wrong answer. The relationship encoded in the target chunk is the decisive, missing piece.
+
+3. **Requires the target chunk** to produce a correct and complete answer — the bridge, exception, exclusion, extension, or cross-application expressed in the target chunk is what changes or completes the answer.
+
+4. **Is realistic and concrete** — phrase it as a question a legal professional, official, or affected party would genuinely ask when seeking practical guidance.
+
+5. **Query does not need to be dependent on all context chunks** - it is fine to use at least one context chunk (and obviously a target chunk), but it is not necessary to use all of them. 
+
+6. **The query does not contain explicit references to context chunks ** - if you are crafting a query about the relationship between the target chunk and a context chunk, speak speak about this context chunk, not simply place its identifier like "Article 5 paragraph 2 point 3 letter a" etc.
+
+7. **Describe facts, not shared labels**: Do NOT use the exact administrative terms or labels that appear in the target chunk (e.g., if the target chunk says "special day service", do not use that phrase in the query). Instead, describe the factual situation, conditions, or affected parties using the substantive details found only in the context chunks (e.g., describe "a child with a significant and permanent physical disability who needs support outside a normal daycare"). This ensures the query can only be connected to the target chunk by first reading the context chunk.
+
+8. **Use of the Neighboring chunks**: They might be helpful to understand the target chunk and the context chunks. However, a neighboring chunk should not be the basis for the query, unless it is either explicitly referenced or **clearly required** to ("implicitly referenced") understand the target chunk (e.g. the target chunk is mentioned as the 'previous' or 'next' provision or e.g. the neighboring chunks are one sentence, hierarchically split into clauses by order, and the target chunk cannot be understood without preceding clauses i.e. chunks). Then, treat a neighbouring chunk as a context chunk.
+
+---
+
+**Input:**
+- **Target chunk**: {{chunk}}
+- **Neighboring chunks**: {{impl_context_chunks}}
+- **Context chunks**: {{context_chunks}}
+
+**Output:**
+Return only the query — a single question, in the same language as the input legal text. No explanation, no preamble, no quotation marks.
+
+--- Rehearsal of the instructions:
+
+You are given a **target chunk** from a legal text and the **context chunks** it references.
+
+**Definitions:**
+- **Target chunk**: A provision that contains at least two references to other provisions within the same document.
+- **Context chunks**: The provisions explicitly referenced (pinpoint citations) by the target chunk. They carry substantive normative content.
+- **Neighboring chunks**: Provisions adjacent to the target chunk (i.e., the immediately preceding and maybe also following provisions in the document, coming from the same legal paragraph), if exist. They may or may not be explicitly referenced by the target chunk. 
+
+---
+
+**Your task**: Generate exactly one realistic, natural-language retrieval query satisfying ALL of the following conditions:
+
+1. **Semantically targets the context chunks** — a standard retriever will likely retrieve one or more context chunks in response, because they contain the substantive, keyword-rich content relevant to the query. The target chunk will *not* be retrieved on its own merit.
+
+2. **Cannot be correctly answered by the context chunks alone** — reading only the context chunks, a reader would arrive at an incomplete or outright wrong answer. The relationship encoded in the target chunk is the decisive, missing piece.
+
+3. **Requires the target chunk** to produce a correct and complete answer — the bridge, exception, exclusion, extension, or cross-application expressed in the target chunk is what changes or completes the answer.
+
+4. **Is realistic and concrete** — phrase it as a question a legal professional, official, or affected party would genuinely ask when seeking practical guidance.
+
+5. **Query does not need to be dependent on all context chunks** - it is fine to use at least one context chunk (and obviously a target chunk), but it is not necessary to use all of them. 
+
+6. **The query does not contain explicit references to context chunks ** - if you are crafting a query about the relationship between the target chunk and a context chunk, speak speak about this context chunk, not simply place its identifier like "Article 5 paragraph 2 point 3 letter a" etc.
+
+7. **Describe facts, not shared labels**: Do NOT use the exact administrative terms or labels that appear in the target chunk (e.g., if the target chunk says "special day service", do not use that phrase in the query). Instead, describe the factual situation, conditions, or affected parties using the substantive details found only in the context chunks (e.g., describe "a child with a significant and permanent physical disability who needs support outside a normal daycare"). This ensures the query can only be connected to the target chunk by first reading the context chunk.
+
+8. **Use of the Neighboring chunks**: They might be helpful to understand the target chunk and the context chunks. However, a neighboring chunk should not be the basis for the query, unless it is either explicitly referenced or **clearly required** to ("implicitly referenced") understand the target chunk (e.g. the target chunk is mentioned as the 'previous' or 'next' provision or e.g. the neighboring chunks are one sentence, hierarchically split into clauses by order, and the target chunk cannot be understood without preceding clauses i.e. chunks). Then, treat a neighbouring chunk as a context chunk.
+
+---
