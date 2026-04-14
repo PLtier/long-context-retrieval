@@ -1,7 +1,7 @@
 import queue
 from typing import Generator
 
-from datasets import load_dataset
+from datasets import Dataset, load_dataset
 from datasets.load import load_from_disk
 import pandas as pd
 
@@ -10,8 +10,8 @@ class DataFormatter():
     def __init__(
         self,
     ):
-        self.doc_dataset = None
-        self.queries_dataset = None
+        self.doc_dataset: Dataset = None
+        self.queries_dataset: Dataset = None
         self.query_prompt = ""
         self.doc_prompt = ""
 
