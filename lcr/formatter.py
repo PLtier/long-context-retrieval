@@ -53,7 +53,8 @@ class DataFormatter():
     @staticmethod
     def parse_id(sample):
         if "chunk_id" in sample:
-            doc_id, internal_id = sample["chunk_id"].split("_")
+            split = sample["chunk_id"].split("_")
+            doc_id, internal_id = split[0], '-'.join(split[1:])
             return {"doc_id": doc_id, "internal_id": internal_id}
         elif "chunk_ids" in sample:
             doc_id, _ = sample["chunk_ids"][0].split("_")
@@ -83,13 +84,15 @@ class DataFormatter():
         df_by_doc_id = df.groupby("doc_id", sort=True)
         return list(df_by_doc_id["query"].apply(list)), list(df_by_doc_id["chunk_id"].apply(list))
     
-    def get_chunks_with_context(self, col="chunk", context_col="context_chunks_ids", chain_context: bool = False) -> Generator[tuple[str, str, str], None, None]:
+    def get_chunks_with_context(self, col="chunk", context_col="context_chunks_ids", impl_context_col="", chain_context: bool = False) -> Generator[tuple[str, str, str, str], None, None]:
         """Return the chunk and its context, concatenated. Generator"""
         # for chunk_id, chunk, context_ids in zip(self.doc_dataset['chunk_id'], self.doc_dataset[col], self.doc_dataset[context_col]):
         for source_chunk in self.doc_dataset:
-            chunk_id, chunk_text, context_ids = source_chunk['chunk_id'], source_chunk[col], source_chunk[context_col]
+            context_ids: list[str] = source_chunk[context_col]
             if context_ids:
-                # context = " ".join([self.doc_dataset.loc[self.doc_dataset["chunk_id"] == cid, col].values[0] for cid in context_ids])  # ty:ignore[not-subscriptable]
+                chunk_id: str = source_chunk['chunk_id']
+                chunk_text: str = source_chunk[col]
+
                 if chain_context is False:
                     context = " \n ".join(self.doc_dataset.filter(lambda x: x["chunk_id"] in context_ids)[col])
                 else:
@@ -107,10 +110,16 @@ class DataFormatter():
                                 marked.add(target['chunk_id'])
                                 context.append(target[col])
                                 fifo.put_nowait(target)
-                    context = " \n ".join(context)
+                    context: str = " \n ".join(context)
+
+                impl_context = ""
+                if len(impl_context_col) > 0:
+                    # context is always first-level only
+                    impl_context: list[str] = source_chunk[impl_context_col]
+                    impl_context = " \n ".join(self.doc_dataset.filter(lambda x: x["chunk_id"] in impl_context)[col])
 
                 # print("Context chunks:", context)
                 # print("Chunk with context:", f"{self.doc_prompt}{chunk} {context}")
 
-                yield chunk_id, chunk_text, context
+                yield chunk_id, chunk_text, context, impl_context
 

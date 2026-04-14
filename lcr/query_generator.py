@@ -1,5 +1,3 @@
-
-
 import asyncio
 import json
 import os
@@ -19,14 +17,17 @@ class QueryMapper:
     """
     Class responsible for generating queries given a chunk and its context.
     """
-    def __init__(self, ds_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True):
+    def __init__(self, ds_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, context_col: str = "context_chunks_ids", impl_context_col: str = ""):
         self.ds_formatter: DataFormatter = ds_formatter
         
         self.llm_name: str = llm_name
         self.save_path: Path = Path(save_path)
         self.start_from_checkpoint: bool = start_from_checkpoint
         self.save_jsonl: bool = save_jsonl
+        self.context_col: str = context_col
+        self.impl_context_col: str = impl_context_col
         self._semaphore: asyncio.Semaphore = asyncio.Semaphore(50)
+
         if provider == "openrouter":
             self._client = AsyncOpenAI(
                 api_key=os.getenv("OPENROUTER_API_KEY"),
@@ -53,13 +54,13 @@ class QueryMapper:
             try:
                 async with self._semaphore:
                     response = await self._client.chat.completions.create(
-                        # model=self.llm_name,
-                        model="Qwen/Qwen3-235B-A22B-Instruct-2507-tput",
+                        model=self.llm_name,
+                        # model="Qwen/Qwen3-235B-A22B-Instruct-2507-tput",
                         messages=[{"role": "user", "content": prompt}],
                         # max_tokens=self.max_tokens,
                         # temperature=0.0,
                         # extra_body={"reasoning": {"enabled": False}},
-                        # reasoning_effort = "medium",
+                        reasoning_effort = "medium",
 
                     )
                 choices = getattr(response, "choices", None)
@@ -130,16 +131,18 @@ class QueryMapper:
 
 class QueryGenerator(QueryMapper):
     """Generates queries given a chunk and its context."""
-    def __init__(self, doc_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True):
+    def __init__(self, doc_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, context_col: str = "context_chunks_ids", impl_context_col: str = ""):
         super().__init__(doc_formatter, llm_name, provider, save_path, start_from_checkpoint, save_jsonl)
         self.max_tokens = 200
         self.jsonl_filename = "queries"
+        self.context_col = context_col
+        self.impl_context_col = impl_context_col
         # Setup Jinja2 environment
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("query_prompt_v7.j2")
+        self.template = self.jinja_env.get_template("query_prompt_v7_impl.j2")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template
@@ -167,18 +170,19 @@ class QueryGenerator(QueryMapper):
         # Each pair: (chunk, context_chunks)
         # Assign a chunk_id (could be index or hash)
         pairs_with_id = []
-        for chunk_id, chunk, context_chunks in self.ds_formatter.get_chunks_with_context(chain_context=chain_context):
+        for chunk_id, chunk, context_chunks, impl_context_chunks in self.ds_formatter.get_chunks_with_context(chain_context=chain_context, context_col=self.context_col, impl_context_col=self.impl_context_col):
             if chunk_id not in existing_ids:
-                pairs_with_id.append((chunk_id, chunk, context_chunks))
+                pairs_with_id.append((chunk_id, chunk, context_chunks, impl_context_chunks))
 
         total = len(pairs_with_id)
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
 
-        for i, (chunk_id, chunk, context_chunks) in enumerate(atqdm(pairs_with_id, desc="Generating queries", unit="chunk")):
+        for i, (chunk_id, chunk, context_chunks, impl_context_chunks) in enumerate(atqdm(pairs_with_id, desc="Generating queries", unit="chunk")):
             fields = {
                 "chunk_id": chunk_id,
                 "chunk": chunk,
-                "context_chunks": context_chunks
+                "context_chunks": context_chunks,
+                "impl_context_chunks": impl_context_chunks
             }
             result = await self.get_result(fields)
             self.queries.append(result)
@@ -202,7 +206,7 @@ class QueryAssurance(QueryMapper):
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("assurance_prompt_v7.j2")
+        self.template = self.jinja_env.get_template("assurance_prompt_v7_impl.j2")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template
@@ -219,7 +223,6 @@ class QueryAssurance(QueryMapper):
 
     async def generate(self):
         # Load checkpoint if needed
-        existing = []
         existing_ids = set()
         if self.start_from_checkpoint:
             existing = self._load_existing()
@@ -235,20 +238,23 @@ class QueryAssurance(QueryMapper):
             chunk_id = row['chunk_id']
             chunk = row['chunk']
             context_chunks = row['context_chunks']
+            impl_context_chunks = row.get('impl_context_chunks', "")
             query = row['query']
+            
 
             if chunk_id not in existing_ids:
-                pairs_with_id.append((chunk_id, query, chunk, context_chunks))
+                pairs_with_id.append((chunk_id, query, chunk, context_chunks, impl_context_chunks))
 
         total = len(pairs_with_id)
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
 
-        for i, (chunk_id, query, chunk, context_chunks) in enumerate(atqdm(pairs_with_id, desc="Generating queries", unit="chunk")):
+        for i, (chunk_id, query, chunk, context_chunks, impl_context_chunks) in enumerate(atqdm(pairs_with_id, desc="Generating queries", unit="chunk")):
             fields = {
                 "chunk_id": chunk_id,
                 "query": query,
                 "chunk": chunk,
-                "context_chunks": context_chunks
+                "context_chunks": context_chunks,
+                "impl_context_chunks": impl_context_chunks
             }
             result = await self.get_result(fields)
             self.queries.append(result)
