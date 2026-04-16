@@ -26,7 +26,7 @@ class QueryMapper:
         self.save_jsonl: bool = save_jsonl
         self.context_col: str = context_col
         self.impl_context_col: str = impl_context_col
-        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(50)
+        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(30)
 
         if provider == "openrouter":
             self._client = AsyncOpenAI(
@@ -177,18 +177,33 @@ class QueryGenerator(QueryMapper):
         total = len(pairs_with_id)
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
 
-        for i, (chunk_id, chunk, context_chunks, impl_context_chunks) in enumerate(atqdm(pairs_with_id, desc="Generating queries", unit="chunk")):
+        tasks = []
+        # i = 0
+        for chunk_id, chunk, context_chunks, impl_context_chunks in atqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
             fields = {
                 "chunk_id": chunk_id,
                 "chunk": chunk,
                 "context_chunks": context_chunks,
                 "impl_context_chunks": impl_context_chunks
             }
-            result = await self.get_result(fields)
+            # self.queries.append(fields) # TEST
+            # TMP - limit
+            # if i >= 30:
+            #     break
+            # else:
+            #     i+=1
+            tasks.append(self.get_result(fields))
+
+        # # results = await asyncio.gather(*tasks)
+        completed = 0
+
+        for coro in asyncio.as_completed(tasks):
+            result = await coro
             self.queries.append(result)
-            if (i + 1) % 10 == 0:
+            completed += 1
+            if completed % 10 == 0:
                 self._save()
-        # Final save
+        # # Final save
         self._save()
         logger.info("Done generating queries.")
 
@@ -226,7 +241,7 @@ class QueryAssurance(QueryMapper):
         existing_ids = set()
         if self.start_from_checkpoint:
             existing = self._load_existing()
-            existing_ids = existing['chunk_id'] # they are already unique
+            existing_ids = existing['chunk_id']  # they are already unique
             self.queries = list(existing)
         else:
             self.queries = []
@@ -240,15 +255,14 @@ class QueryAssurance(QueryMapper):
             context_chunks = row['context_chunks']
             impl_context_chunks = row.get('impl_context_chunks', "")
             query = row['query']
-            
-
             if chunk_id not in existing_ids:
                 pairs_with_id.append((chunk_id, query, chunk, context_chunks, impl_context_chunks))
 
         total = len(pairs_with_id)
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
 
-        for i, (chunk_id, query, chunk, context_chunks, impl_context_chunks) in enumerate(atqdm(pairs_with_id, desc="Generating queries", unit="chunk")):
+        tasks = []
+        for chunk_id, query, chunk, context_chunks, impl_context_chunks in atqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
             fields = {
                 "chunk_id": chunk_id,
                 "query": query,
@@ -256,9 +270,14 @@ class QueryAssurance(QueryMapper):
                 "context_chunks": context_chunks,
                 "impl_context_chunks": impl_context_chunks
             }
-            result = await self.get_result(fields)
+            tasks.append(self.get_result(fields))
+
+        completed = 0
+        for coro in asyncio.as_completed(tasks):
+            result = await coro
             self.queries.append(result)
-            if (i + 1) % 10 == 0:
+            completed += 1
+            if completed % 10 == 0:
                 self._save()
         # Final save
         self._save()
