@@ -83,7 +83,7 @@ class Embedder:
         # make into a contiguous tensor, and map position to document_ids
         return doc_embeddings, document_ids
 
-    def get_similarities(self, query_embeddings, doc_embeddings):
+    def get_similarities(self, query_embeddings, doc_embeddings) -> torch.Tensor:
         # convert to torch tensors and compute similarity with dot product
         scores = torch.mm(query_embeddings, doc_embeddings.t())
         return scores.to("cpu")
@@ -122,14 +122,7 @@ class Embedder:
             # Add per-query results for downstream CSV extraction
         # metrics["results"] = results
 
-        # filter per position
-        def filter(relevant_docs, results, position):
-            idxs = {k for k, v in relevant_docs.items() if list(v.keys())[0].split("_")[-1] == position}
-            relevant_docs = {k: v for k, v in relevant_docs.items() if k in idxs}
-            results = {k: v for k, v in results.items() if k in idxs}
-            return relevant_docs, results
-
-        if kwargs.get("max_sim_over_docs", True):
+        if kwargs.get("max_sim_over_docs", False):
             # relevant docs (max similarity over all docs with same prefix)
             new_relevant_docs = {}
             for key, doc in relevant_docs.items():
