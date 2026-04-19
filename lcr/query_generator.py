@@ -106,17 +106,19 @@ class QueryMapper:
 
     def _save(self):
         """Save queries to HuggingFace dataset and optionally JSONL."""
-        if not self.queries:
-            return
-        # Save as HuggingFace dataset
-        keys = self.queries[0].keys()
+        # i don't think we need to use it all all.
+        # if not self.queries:
+        #     return
+        # # Save as HuggingFace dataset
+        # keys = self.queries[0].keys()
 
-        data = {key: [q[key] for q in self.queries] for key in keys} # transform for HF format.
-        ds = Dataset.from_dict(data)
-        ds.save_to_disk(str(self.save_path))
+        # data = {key: [q[key] for q in self.queries] for key in keys} # transform for HF format.
+        # ds = Dataset.from_dict(data)
+        # ds.save_to_disk(str(self.save_path))
 
         if self.save_jsonl:
-            jsonl_path = self.save_path.parent / f"{self.jsonl_filename}.jsonl"
+            self.save_path.mkdir(parents=True, exist_ok=True)
+            jsonl_path = self.save_path / f"{self.jsonl_filename}.jsonl"
             with open(jsonl_path, "w", encoding="utf-8") as f:
                 for q in self.queries:
                     json.dump(q, f, ensure_ascii=False)
