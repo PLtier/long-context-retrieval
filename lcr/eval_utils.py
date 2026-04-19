@@ -29,14 +29,14 @@ class CustomRetrievalEvaluator:
             relevant_docs,
             results,
             self.k_values,
-            ignore_identical_ids=kwargs.get("ignore_identical_ids", True),
+            ignore_identical_ids=kwargs.get("ignore_identical_ids", False),
         )
 
         mrr = self.evaluate_custom(relevant_docs, results, self.k_values, "mrr")
 
         scores = {
-            **{f"ndcg_at_{k.split('@')[1]}": v for (k, v) in ndcg.items()},
-            **{f"map_at_{k.split('@')[1]}": v for (k, v) in _map.items()},
+            # **{f"ndcg_at_{k.split('@')[1]}": v for (k, v) in ndcg.items()},
+            # **{f"map_at_{k.split('@')[1]}": v for (k, v) in _map.items()},
             **{f"recall_at_{k.split('@')[1]}": v for (k, v) in recall.items()},
             **{f"precision_at_{k.split('@')[1]}": v for (k, v) in precision.items()},
             **{f"mrr_at_{k.split('@')[1]}": v for (k, v) in mrr.items()},
