@@ -1,11 +1,22 @@
 #!/bin/bash
 
-python lcr/generate_queries.py assure-queries \
-    --queries-base-dir ./data/processed/polish_poc_more \
-    --datasets queries \
-    --save-path ./data/processed/polish_poc_more/checked_queries \
-    --no-start-from-checkpoint \
-    --llm "OpenAI/gpt-oss-120B" \
-    --provider "together"
+# Iterate through all clusters and subfolders in danish_dataset_7 and run the two commands for each dataset directory with queries.jsonl
+PROCESSED_BASE=./data/processed/danish_dataset_7_no_chain
 
-python lcr/visualisation/visualise_jsonl.py data/processed/polish_poc_more/assurance_results.jsonl --preset assurance_results \
+for cluster in "$PROCESSED_BASE"/cluster_*; do
+    for dataset in "$cluster"/*; do
+        if [ -d "$dataset" ] && [ -f "$dataset/queries.jsonl" ]; then
+            dataset_name=$(basename "$dataset")
+            cluster_name=$(basename "$cluster")
+            echo "Assuring $cluster_name/$dataset_name"
+            python lcr/generate_queries.py assure-queries \
+                --queries-base-dir "$dataset" \
+                --datasets queries \
+                --save-path "$dataset" \
+                --no-start-from-checkpoint \
+                --llm "OpenAI/gpt-oss-120B" \
+                --provider "together"
+            python lcr/visualisation/visualise_jsonl.py "$dataset/assurance_results.jsonl" --preset assurance_results
+        fi
+    done
+done
