@@ -1,4 +1,5 @@
 import queue
+import random
 from typing import Generator
 
 from datasets import Dataset, load_dataset
@@ -66,7 +67,7 @@ class DataFormatter():
     def get_nested(self, col="chunk") -> tuple[list[list[str]], list[list[str]]]:
         # TODO: verify it's sorted #DONE
         df: pd.DataFrame = self.doc_dataset.to_pandas()
-        df.sort_values(by="chunk_id", inplace=True)
+        df.sort_values(by="chunk_idx", inplace=True)
         df_by_doc_id = df.groupby("doc_id", sort=True)
         return list(df_by_doc_id[col].apply(list)), list(df_by_doc_id["chunk_id"].apply(list))
 
@@ -83,48 +84,60 @@ class DataFormatter():
         df: pd.DataFrame = self.queries_dataset.to_pandas()
         df_by_doc_id = df.groupby("doc_id", sort=True)
         return list(df_by_doc_id["query"].apply(list)), list(df_by_doc_id["chunk_id"].apply(list))
-    
-    def get_chunks_with_context(self, col="chunk", context_col="context_chunks_ids", impl_context_col="", chain_context: bool = False) -> Generator[tuple[str, str, str, str], None, None]:
+        
+    def get_chunks_with_context(self, col="chunk", context_col="context_chunks_ids", impl_context_col="", chain_context: bool = False, sample_size=0) -> Generator[tuple[str, str, str, str], None, None]:
         """Return the chunk and its context, concatenated. Generator"""
         # for chunk_id, chunk, context_ids in zip(self.doc_dataset['chunk_id'], self.doc_dataset[col], self.doc_dataset[context_col]):
 
 
         chunk_lookup: dict[str, dict] = {item['chunk_id']: item for item in self.doc_dataset} # build index
-        for source_chunk in self.doc_dataset:
+
+        candidate_chunks = [chunk for chunk in chunk_lookup.values() if chunk[context_col]] # filter to only those with context
+        # FOR DEV PURPOSES:
+        # sample_size = 5
+        # TODO: remove after testing
+        if sample_size is not None and sample_size != 0:
+            candidate_chunks = random.sample(candidate_chunks, min(sample_size, len(candidate_chunks))) # sample from
+
+
+    
+        for source_chunk in candidate_chunks:
+            # pick a random chunk from chunk_lookup
             context_ids: list[str] = source_chunk[context_col]
-            if context_ids: # TEMPORARY
-                chunk_id: str = source_chunk['chunk_id']
-                chunk_text: str = source_chunk[col]
+            chunk_id: str = source_chunk['chunk_id']
+            chunk_text: str = source_chunk[col]
 
-                if chain_context is False:
-                    context = " \n ".join([chunk_lookup[context_id][col] for context_id in context_ids if context_id in chunk_lookup])
-                else:
-                    fifo = queue.SimpleQueue()
-                    marked: set[str] = set()
-                    context: list[str] = []
-                    fifo.put_nowait(source_chunk)
-                    while fifo.empty() is False:
-                        intermediary_chunk = fifo.get_nowait()
-                        targets = [chunk_lookup[context_id] for context_id in intermediary_chunk[context_col] if context_id in chunk_lookup]
-                        if targets:
-                            context.append(intermediary_chunk['chunk_id'])
-                        for target in targets:
-                            if target['chunk_id'] not in marked:
-                                marked.add(target['chunk_id'])
-                                context.append(target[col])
-                                fifo.put_nowait(target)
-                    context: str = " \n ".join(context)
+            if chain_context is False:
+                context = " \n ".join([chunk_lookup[context_id][col] for context_id in context_ids if context_id in chunk_lookup])
+            else:
+                fifo = queue.SimpleQueue()
+                marked: set[str] = set()
+                context: list[str] = []
+                fifo.put_nowait(source_chunk)
+                while fifo.empty() is False:
+                    intermediary_chunk = fifo.get_nowait()
+                    targets = [chunk_lookup[context_id] for context_id in intermediary_chunk[context_col] if context_id in chunk_lookup]
+                    if targets:
+                        context.append(intermediary_chunk['chunk_id'])
+                    for target in targets:
+                        if target['chunk_id'] not in marked:
+                            marked.add(target['chunk_id'])
+                            context.append(target[col])
+                            fifo.put_nowait(target)
+                context: str = " \n ".join(context)
 
-                impl_context = ""
-                if impl_context_col:
-                    # context is always first-level only
-                    impl_context: list[str] = source_chunk[impl_context_col]
-                    # impl_context = " \n ".join(self.doc_dataset.filter(lambda x: x["chunk_id"] in impl_context)[col])
-                    impl_context = " \n ".join([chunk_lookup[impl_id][col] for impl_id in impl_context if impl_id in chunk_lookup])
+            impl_context = ""
+            if impl_context_col:
+                # context is always first-level only
+                impl_context: list[str] = source_chunk[impl_context_col]
+                # impl_context = " \n ".join(self.doc_dataset.filter(lambda x: x["chunk_id"] in impl_context)[col])
+                impl_context = " \n ".join([chunk_lookup[impl_id][col] for impl_id in impl_context if impl_id in chunk_lookup])
 
 
-                # print("Context chunks:", context)
-                # print("Chunk with context:", f"{self.doc_prompt}{chunk} {context}")
-                if context: # double check if context is present.
-                    yield chunk_id, chunk_text, context, impl_context
+            # print("Context chunks:", context)
+            # print("Chunk with context:", f"{self.doc_prompt}{chunk} {context}")
+            if context: # double check if context is present.
+                yield chunk_id, chunk_text, context, impl_context
+
+
 
