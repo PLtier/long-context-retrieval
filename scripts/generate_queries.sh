@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Iterate through all clusters and subfolders in danish_dataset_7 and run the two commands for each dataset directory
-RAW_BASE=./data/raw/danish_dataset_7
-PROCESSED_BASE=./data/processed/danish_dataset_7_no_chain
+# Iterate through all clusters and subfolders in datasets and run the two commands for each dataset directory
+RAW_BASE=./data/raw/polish_dataset_7
+PROCESSED_BASE=./data/processed/polish_dataset_7_no_chain
 
 for cluster in "$RAW_BASE"/cluster_*; do
     for dataset in "$cluster"/*; do
@@ -10,7 +10,7 @@ for cluster in "$RAW_BASE"/cluster_*; do
             dataset_name=$(basename "$dataset")
             cluster_name=$(basename "$cluster")
             echo "Processing $cluster_name/$dataset_name"
-            python lcr/generate_queries.py generate-queries \
+            python lcr/cli/generate_queries.py generate-queries \
                 --documents-base-dir "$dataset" \
                 --datasets chunks \
                 --save-path "$PROCESSED_BASE/$cluster_name/$dataset_name" \
