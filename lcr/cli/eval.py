@@ -46,7 +46,7 @@ def eval(
 
 
 
-    top_n = 5
+    top_n = 10
     # save as jsonlines file:
     queries, gt_chunk_ids = ds_formatter.get_queries()
     chunks, chunk_ids = ds_formatter.get_flattened()
