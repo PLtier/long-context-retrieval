@@ -10,6 +10,11 @@ def render_collapsible(title, content, open=False):
 
 def render_record(record, preset):
     html = ['<div class="record">']
+    # Add checkboxes at the top of each record
+    html.append('<div style="margin-bottom: 0.5em;">'
+               '<label><input type="checkbox"> gpt</label> '
+               '<label><input type="checkbox"> human</label>'
+               '</div>')
     for k, v in record.items():
         # Large fields collapsed by default
         if preset == 'queries' and k in {'context_chunks', 'impl_context_chunks', 'chunk'}:
@@ -70,6 +75,12 @@ def main(
                 records.append(json.loads(line))
             except Exception as e:
                 typer.echo(f"Skipping line due to error: {e}", err=True)
+    # Sort records by 'chunk_id' if present
+    if records and 'chunk_id' in records[0]:
+        try:
+            records.sort(key=lambda r: r.get('chunk_id', ''))
+        except Exception as e:
+            typer.echo(f"Warning: Could not sort by chunk_id: {e}", err=True)
     title = f"Visualisation of {input_path.name}"
     html = render_html(records, preset, title)
     with open(output_path, 'w', encoding='utf-8') as f:
