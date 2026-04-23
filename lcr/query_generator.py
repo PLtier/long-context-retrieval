@@ -7,6 +7,7 @@ from datasets import Dataset, load_from_disk
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from loguru import logger
 from openai import AsyncOpenAI
+from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
 from lcr.config import PROMPTS_DIR
@@ -144,7 +145,7 @@ class QueryGenerator(QueryMapper):
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("query_prompt_v7_impl.j2")
+        self.template = self.jinja_env.get_template("query_prompt_r6.j2")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template
@@ -181,7 +182,7 @@ class QueryGenerator(QueryMapper):
 
         tasks = []
         # i = 0
-        for chunk_id, chunk, context_chunks, impl_context_chunks in atqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
+        for chunk_id, chunk, context_chunks, impl_context_chunks in tqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
             fields = {
                 "chunk_id": chunk_id,
                 "chunk": chunk,
@@ -199,7 +200,7 @@ class QueryGenerator(QueryMapper):
         # # results = await asyncio.gather(*tasks)
         completed = 0
 
-        for coro in asyncio.as_completed(tasks):
+        for coro in atqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing generated queries", unit="query"):
             result = await coro
             self.queries.append(result)
             completed += 1
@@ -223,7 +224,7 @@ class QueryAssurance(QueryMapper):
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("assurance_prompt_v7_impl.j2")
+        self.template = self.jinja_env.get_template("assurance_prompt_r6.j2")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template
@@ -264,7 +265,7 @@ class QueryAssurance(QueryMapper):
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
 
         tasks = []
-        for chunk_id, query, chunk, context_chunks, impl_context_chunks in atqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
+        for chunk_id, query, chunk, context_chunks, impl_context_chunks in tqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
             fields = {
                 "chunk_id": chunk_id,
                 "query": query,
@@ -275,7 +276,7 @@ class QueryAssurance(QueryMapper):
             tasks.append(self.get_result(fields))
 
         completed = 0
-        for coro in asyncio.as_completed(tasks):
+        for coro in atqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing generated queries", unit="query"):
             result = await coro
             self.queries.append(result)
             completed += 1
