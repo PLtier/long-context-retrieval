@@ -96,6 +96,18 @@ class DataFormatter():
         # FOR DEV PURPOSES:
         # sample_size = 5
         # TODO: remove after testing
+
+        if type(candidate_chunks[0][context_col]) is str:
+            # it means context_col already contains concatenated text
+            for chunk in candidate_chunks:
+                chunk_id: str = chunk['chunk_id']
+                chunk_text: str = chunk[col]
+                context: str = chunk[context_col]
+                impl_context: str = ""
+                if impl_context_col:
+                    impl_context = chunk[impl_context_col]
+                yield chunk_id, chunk_text, context, impl_context
+
         if sample_size is not None and sample_size != 0:
             candidate_chunks = random.sample(candidate_chunks, min(sample_size, len(candidate_chunks))) # sample from
 

@@ -16,6 +16,7 @@ DATASETS: dict[str, dict] = {
     "insurance": {},
     "example": {"is_query_local": True, "is_docs_local": True, "split": None},
     "chunks": {"is_query_local": True, "is_docs_local": True, "split": None},
+    "queries": {"is_query_local": True, "is_docs_local": True, "split": None},
 }
 
 async def contextualise_datasets_async(
