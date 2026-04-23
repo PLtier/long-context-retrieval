@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Iterate through all clusters and subfolders in danish_dataset_7 and run the two commands for each dataset directory with queries.jsonl
-PROCESSED_BASE=./data/processed/danish_dataset_7_no_chain
+PROCESSED_BASE=./data/processed/polish_dataset_7_no_chain
 
 for cluster in "$PROCESSED_BASE"/cluster_*; do
     for dataset in "$cluster"/*; do
@@ -9,7 +9,7 @@ for cluster in "$PROCESSED_BASE"/cluster_*; do
             dataset_name=$(basename "$dataset")
             cluster_name=$(basename "$cluster")
             echo "Assuring $cluster_name/$dataset_name"
-            python lcr/generate_queries.py assure-queries \
+            python lcr/cli/generate_queries.py assure-queries \
                 --queries-base-dir "$dataset" \
                 --datasets queries \
                 --save-path "$dataset" \
