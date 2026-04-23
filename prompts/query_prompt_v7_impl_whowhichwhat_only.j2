@@ -1,0 +1,56 @@
+Your task is to generate a query for a retrieval dataset focused on contextual dependencies i.e. for the context chunk to be selected as positive, understanding of the target chunk is required.
+You are given a **target chunk** from a legal text and the **context chunks** it references. Also maybe **neighboring chunks**.
+
+**Definitions:**
+- **Citation, explicit reference** - pinpoint citation
+- **Target chunk**: A chunk that contains at one pinpoint citation to other chunk within the same document.
+- **Context chunks**: The chunks explicitly referenced by the target chunk.
+- **Neighboring chunks**: chunks adjacent to the target chunk (i.e., the immediately preceding and maybe also following chunks in the document, coming from the same legal paragraph), if exist. They may or may not be explicitly referenced by the target chunk. 
+-**about the statement, targets the context chunk** - it means it asks about new piece of information that is established in a chunk. It does not mean simply referencing the chunk.
+---
+
+**Your task**: Generate exactly one realistic, natural-language retrieval query satisfying ALL of the following conditions:
+
+Key conditions:
+1. **Targets the context chunk** — The answer to the query is a piece of information established in the context chunk, that is dependent on the target chunk.  
+    - If there are multiple context, the query should target only only one of them. However, it might contain context from the other context chunks.
+
+2. **However, the retriever requires target chunks** - for the context chunk to be selected as positive, target chunk is required. The context chunk will *not* be retrieved on its own merit.
+    - That means, that the query should contain information that is only found in the target chunks, and that is required to understand the context chunk.
+
+3. **ONLY WHO/WHAT/WHICH questions** - most likely this is the only reasonable way to construct the question about the context chunk. You can ask a WHO/WHAT/WHICH and subsitute the pinpoint citations in the target chunk with the information from the context chunks.
+
+Clarifications:
+
+6. **Use of the Neighboring chunks**: They might be helpful to understand the target chunk and the context chunks. However, a neighboring chunk should not be the basis for the query, unless it is explicitly referenced. Then, treat a neighbouring chunk as a context chunk.
+
+7. **Elaborates on the target chunk** - while the query targets one of the context chunks, try to put elaborate on the target chu
+
+Example:
+
+
+Target chunk:
+2. Do żołnierzy, o których mowa w § 2 pkt 2 lit. e, nie stosuje się ust. 1 pkt 2.
+Context chunks:
+§ 2. Należności pieniężne określone przepisami niniejszego rozporządzenia przyznaje się żołnierzom zawodowym: \n 2) skierowanym do pełnienia zawodowej służby wojskowej poza granicami państwa: \n e) w celu zabezpieczenia funkcjonowania jednostki wojskowej użytej zgodnie z przepisamiustawy z dnia 17 grudnia 1998 r. o zasadach użycia lub pobytu Sił Zbrojnych Rzeczypospolitej Polskiej poza granicami państwa, w rejonie jej działania albo zapewnienia organizacji, funkcjonowania i sprawowania działalności kontrolnej tej jednostki wojskowej w rejonie jej działania. \n § 10. 1. Stawka dodatku wojennego, o którym mowa w art. 468 ust. 5 ustawy, wynosi: \n 2) od 0,03 do 0,05 najniższego uposażenia - za każdy dzień wykonywania zadań w strefie działań wojennych w warunkach związanych z bezpośrednim udziałem w akcjach o charakterze bojowym, akcjach zapobiegania aktom terroryzmu lub ich skutkom albo pełnieniem służby patrolowej, ochronnej lub z udziałem w konwojach.
+No neighboring chunks.
+BAD query:
+Czy żołnierze zawodowi, którzy wykonują są skierowani do pełnienia służby wojskowej poza granicami państwa w celu zabezpieczenia funkcjonowania jednostki wojskowej, otrzymują dodatek wojenny za każdy dzień wykonywania zadań?
+GOOD query:
+Jacy żołnierze, nie otrzymują dodatek wojenny za każdy dzień wykonywania zadań?
+
+
+---
+
+**Output:**
+Return only the query — a single question, in the same language as the input legal text. No explanation, no preamble, no quotation marks.
+
+Reason in English regardless of the language of the input chunks.
+
+---
+
+**Input:**
+- **Target chunk**: {{chunk}}
+- **Neighboring chunks**: {{impl_context_chunks}}
+- **Context chunks**: {{context_chunks}}
+

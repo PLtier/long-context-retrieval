@@ -1,0 +1,77 @@
+Your task is to evaluate the quality of an item in a retrieval dataset focused on contextual dependencies, i.e. retrieving the context chunk should require understanding of the target chunk.
+
+You are given a **query**, **context chunks**, and a **target chunk** that references these context chunks. You may also be given **neighboring chunks**.
+
+**Definitions:**
+
+- **Query**: A question whose answer is established in the context chunk but only becomes identifiable as such once the target chunk is taken into account. For the context chunk to be correctly identified given the query, understanding of the target chunk (and possibly neighboring chunks) is required. This is what you are going to evaluate.
+- **Target chunk**: The chunk that contains pinpoint citations referring to other chunks.
+- **Context chunks**: The chunks cited by the target chunk. **The context chunk is the chunk that should be retrieved given the query.**
+- **Neighboring chunks**: Chunks adjacent to the target chunk (i.e., the immediately preceding and possibly following chunks in the document, coming from the same legal paragraph), if they exist. They may or may not be cited by the target chunk. They may or may not be required to understand the target chunk, but they should not be the basis for the query unless they are clearly required to understand the target chunk (e.g., the target chunk is mentioned as the 'previous' or 'next' chunk, or the neighboring chunks are one sentence hierarchically split into clauses by order, and the target chunk cannot be understood without preceding clauses, i.e. chunks).
+- **Citation, explicit reference**: pinpoint citation.
+- **Sufficient to identify the context chunk**: A chunk or set of chunks is said to be sufficient if, taken together with the query, it contains all the information needed to establish the context chunk as the correct answer. Note that even if a chunk directly states the answer to the query, it is not sufficient unless its content allows one to interpret the context chunk specifically as the answer.
+- **About the statement**: the query asks about a new piece of information that is established in a chunk. It does not mean simply referencing the chunk.
+
+---
+
+**Core idea of this dataset:**
+
+- The context chunk alone is not a sufficient answer to the query. It does not (necessarily) say anything about the target chunk.
+- The target chunk makes the context chunk a sufficient answer: it holds a reference to the context chunk, and only with knowledge of what the target chunk says about the context chunk does the context chunk become a viable answer.
+- Therefore, the context chunk should be identifiable as the correct answer only when it is considered together with the target chunk. A model that cannot use surrounding context when producing its embeddings should not be able to retrieve the context chunk from the query alone.
+
+---
+
+**Your task**: Evaluate the query against the criteria below. Reason briefly through each before giving a verdict.
+
+**Criterion 1 — Query–context chunk relevance** Is the information asked about in the query established in the context chunk, and not in the target chunk or neighboring chunks? → Expected: **Yes**
+
+**Criterion 2 — Context chunk alone retrievability** Given only the query and the context chunk, is the context chunk itself sufficient to be identified as the correct answer? → Expected: **No**
+
+**Criterion 3 — Context utilization is required** Given only the query and the context chunk (without the target chunk), is the context chunk itself sufficient to be identified as the correct answer? → Expected: **No**
+
+This is the core of the dataset: if the context chunk on its own already suffices as an answer, then the target chunk is not actually needed to interpret the context chunk as the answer, and context utilization is not required. In that case the item must fail, even if the target chunk is also relevant.
+
+**Criterion 4 — All combined sufficient** Are the target chunk, the context chunks, and the neighboring chunks together sufficient to identify the context chunk as the correct answer given the query? → Expected: **Yes**
+
+**Criterion 5 — No pinpoint citations** Does the query contain explicit references to either the context chunk or target chunk (e.g., "Article 5 paragraph 2 point 3 letter a")? → Expected: **No**
+
+**Optional — Implicit context usage (does not affect the final verdict)** Is understanding of the neighboring chunks (implicit context), on top of the target chunk, required to identify the context chunk as the correct answer? Record this answer for statistics only; it does not influence the verdict.
+
+**Optional**: you are given multiple context chunks, however the query should be only about one and only one of them.
+
+
+---
+
+**Final verdict: [Yes / No]** Yes = Criterion 1 is Yes, Criterion 2 is No, Criterion 3 is No, Criterion 4 is Yes, Criterion 5 is No No = Otherwise
+
+---
+
+**Output format:**
+
+**Criterion 1 — Query–context chunk relevance** <one sentence summary>
+
+**Criterion 2 — Context chunk alone retrievability** <one sentence summary>
+
+**Criterion 3 — Context utilization is required** <one sentence summary>
+
+**Criterion 4 — All combined sufficient** <one sentence summary>
+
+**Criterion 5 — No pinpoint citations to the context chunk** <one sentence summary> + one extra sentence, if this happened likely due to unsuccessful mapping of the pinpoint citations in the target chunk to the context chunks.
+
+**Optional — Implicit context usage required** <Yes / No — one sentence summary>
+
+**Optional - Multiple context chunks** <Yes / No — one sentence summary>
+
+Final verdict: [Yes / No] <one sentence summary>
+
+Reason in English regardless of the language of the input chunks.
+
+---
+
+**Input:**
+
+- Query: {{query}}
+- Target chunk: {{chunk}}
+- Neighboring chunks: {{impl_context_chunks}}
+- Context chunks: {{context_chunks}}

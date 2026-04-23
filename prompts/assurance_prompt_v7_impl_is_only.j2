@@ -1,0 +1,66 @@
+The task is to evaluate a quality of a retrieval dataset focused on contextual dependencies i.e. for the target chunk to be selected as positive, understanding of the context is required.
+
+You are given a **query**, **context chunks** and a **target chunk** that references these context chunks. Also maybe **neighboring chunks**.
+**Definitions:**
+- **Query** - a question about the target chunk. However, for the target chunk to be selected as positive, the understanding of some of the context chunks and/or neighboring chunks is required. This is what you are going to evaluate.
+- **Target chunk**: The chunk(s) that contain pinpoint citations referring to other chunks.
+- **Context chunks**: The chunks cited by the target chunk.
+- **Neighboring chunks**: Chunks adjacent to the target chunk (i.e., the immediately preceding and maybe also following chunks in the document, coming from the same legal paragraph), if exist. They may or may not be cited by the target chunk. They may or may not be required to understand the target chunk, but they should not be the basis for the query unless they are clearly required to understand the target chunk (e.g. the target chunk is mentioned as the 'previous' or 'next' chunk or e.g. the neighboring chunks are one sentence, hierarchically split into clauses by order, and the target chunk cannot be understood without preceding clauses i.e. chunks).
+- **Citation, explicit reference** - pinpoint citation
+- **Sufficient**: A chunk or set of chunks is said to be sufficient, if a perfect retriever is able to identify the target chunk as positive given the query, without any additional information. 
+    - **being able to** - specifically, that means that even though the target chunk might directly answer the query, if a chunk or set of chunks does not contain information that allows for the perfect reader to interpret it as an answer to the query, then it is not sufficient. 
+    - **Perfect retriever and perfect reader** - we assume a retriever and reader to be perfect, i.e. to perfectly solve the task once all the necessary information is available. 
+    - **about the statement** - it means it asks about new piece of information that is established in the target chunk. It does not mean simply referencing the target chunk.
+---
+
+**Your task**: Evaluate the query against the three criteria below. Reason briefly through each before giving a verdict.
+
+**Criterion 1 — Query-target chunk relevance**
+Is the query about the statement (as defined above) that is made in the target chunk, and only there? By 'only there' we mean, the query (any of its grammatical clauses) is not about a statement in the context chunks or neighboring chunks, only in the target chunk.
+Consider the context and the neighboring chunks to assess this criterion.
+→ Expected: **Yes**
+
+**Criterion 2 — Target chunk alone retrievability**
+Is the target chunk on its own sufficient to be identified as positive by a perfect retriever given the query? 
+→ Expected: **No**
+
+**Criterion 3 — All combined**
+Are the target chunk, the context chunks and the neighboring chunks sufficient to identify the target chunk as positive by a perfect retriever given the query?
+That also means that that if the query 
+→ Expected: **Yes**
+
+**Criterion 4 - no pinpoint citations**
+Does the query contain explicit references to the context chunks (e.g. "Article 5 paragraph 2 point 3 letter a")?
+→ Expected: **No**
+
+**Final verdict: [Yes / No]**
+Yes = Criterion 1 is Yes, Criterion 2 is NO, Criterion 3 is YES, Criterion 4 is NO
+No = Otherwise
+
+
+**Output format:**
+
+**Criterion 1 — Query-target chunk relevance**
+<one sentence summary>
+
+**Criterion 2 — Target chunk alone retrievability**
+<one sentence summary>
+
+**Criterion 3 — All combined**
+<one sentence summary>
+
+**Criterion 4 - no pinpoint citations**
+<one sentence summary>
+
+Final verdict: [Yes / No]
+<one sentence summary>
+
+Reason in English regardless of the language of the input chunks.
+
+---
+
+**Input:**
+- Query: {{query}}
+- Target chunk: {{chunk}}
+- Neighboring chunks: {{impl_context_chunks}}
+- Context chunks: {{context_chunks}}
