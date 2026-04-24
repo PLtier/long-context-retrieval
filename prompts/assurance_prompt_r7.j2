@@ -1,0 +1,71 @@
+Your task is to evaluate the quality of an item in a retrieval dataset focused on contextual dependencies, i.e. retrieving the context chunk should require understanding of the target chunk.
+
+You are given a **query**, **context chunks**, and a **target chunk** that references these context chunks. You may also be given **neighboring chunks**.
+
+**Definitions:**
+
+- **Query**: A question whose answer must be fully established in exactly one context chunk, but only becomes identifiable as such once the target chunk (and possibly neighboring chunks) is taken into account. The target chunk may make that context chunk relevant, but it must not itself contain the answer. This is what you are going to evaluate.
+- **Target chunk**: The chunk that contains pinpoint citations referring to other chunks.
+- **Context chunks**: The chunks cited by the target chunk. Exactly one of them should be the retrieved positive for the query.**
+- **Claimed targeted context chunk**: The specific context chunk that the query-generation step claims to have targeted. Your job is to verify whether the query actually targets that chunk.
+- **Neighboring chunks**: Chunks adjacent to the target chunk (i.e., the immediately preceding and possibly following chunks in the document, coming from the same legal paragraph), if they exist. They may or may not be cited by the target chunk. They may or may not be required to understand the target chunk, but they should not be the basis for the query unless they are clearly required to understand the target chunk (e.g., the target chunk is mentioned as the 'previous' or 'next' chunk, or the neighboring chunks are one sentence hierarchically split into clauses by order, and the target chunk cannot be understood without preceding clauses, i.e. chunks).
+- **Citation, explicit reference**: pinpoint citation.
+- **Sufficient to identify the context chunk**: A chunk or set of chunks is said to be sufficient if, taken together with the query, it contains all the information needed to establish the context chunk as the correct answer. Note that even if a chunk directly states the answer to the query, it is not sufficient unless its content allows one to interpret the context chunk specifically as the answer.
+- **About the statement**: the query asks about a new piece of information that is established in a chunk. It does not mean simply referencing the chunk.
+
+---
+
+**Core idea of this dataset:**
+
+- The context chunk alone is not a sufficient answer to the query. It does not (necessarily) say anything about the target chunk.
+- The target chunk makes the context chunk a sufficient answer: it holds a reference to the context chunk, and only with knowledge of what the target chunk says about the context chunk does the context chunk become a viable answer.
+- Therefore, the context chunk should be identifiable as the correct answer only when it is considered together with the target chunk. A model that cannot use surrounding context when producing its embeddings should not be able to retrieve the context chunk from the query alone.
+- "If the target chunk itself contains the answer, or if the context chunk would still likely be selected without the target chunk because of lexical overlap, semantic similarity, or universal-rule reasoning, the item must fail."
+
+---
+
+**Your task**: Evaluate the query against the criteria below. Reason through each before giving a verdict.
+
+**Criterion 1 — Query–context chunk relevance** Is the answer to the query fully established in exactly one context chunk, and not in the target chunk or neighboring chunks? The target chunk may make that context chunk relevant, but it must not contribute any part of the answer. → Expected: **Yes**
+
+**Criterion 2 — Context chunk alone retrievability** Given only the query and the context chunk, would the context chunk still look like the correct answer on its own, even if the query includes additional conditions or exceptions that are only stated in the target chunk? → Expected: **No**
+
+**Criterion 3 — Context utilization is required** Is the target chunk required, in addition to the context chunk, for the context chunk to be identified as the correct answer given the query? In other words, without the target chunk, would the context chunk fail to be identifiable as the answer? → Expected: **Yes**
+
+This is the core of the dataset: if the context chunk on its own already suffices as an answer, then the target chunk is not actually needed to interpret the context chunk as the answer, and context utilisation is not required. In that case the item must fail, even if the target chunk is also relevant.
+
+In particular, fail the item if, without the target chunk, a reasonable annotator or non-contextual retriever would still likely select the context chunk because of features such as lexical overlap, semantic similarity, or universal-rule reasoning.
+
+**Criterion 4 — All combined sufficient** Are the target chunk, the context chunks, and the neighboring chunks together sufficient to identify the one specific, targeted context chunk as the correct answer given the query? → Expected: **Yes**
+
+**Criterion 5 — No explicit or abbreviated pinpoint citations** Does the query contain any explicit or abbreviated pinpoint citation, including isolated references such as “Article 5”, “§ 3”, “stk. 3”, “ust. 2”, “nr. 1”, “pkt. 4”, “litra a”, etc., even when they appear without the full section number? → Expected: **No****
+
+**Criterion 6 — Correct context chunk is being targeted** Does the query actually target the claimed targeted context chunk, rather than another context chunk or multiple context chunks at once? → Expected: **Yes**
+
+
+
+
+---
+
+**Final verdict: [Yes / No]** Yes = Criterion 1 is Yes, Criterion 2 is No, Criterion 3 is Yes, Criterion 4 is Yes, Criterion 5 is No, Criterion 6 is Yes. No = Otherwise.
+
+---
+
+Return a JSON object with the following keys:
+- "criterion_1" through "criterion_6": one sentence summary per criterion
+- "answer_to_query": brief phrase or sentence answering the query
+- "verdict": exactly "Yes" or "No"
+
+Reason in English regardless of the language of the input chunks.
+
+Reason in English regardless of the language of the input chunks.
+
+---
+
+**Input:**
+
+- Query: {{query}}
+- Target chunk: {{chunk}}
+- Claimed targeted context chunk id: {{target_context_chunk_id}}
+- Neighboring chunks: {{impl_context_chunks}}
+- Context chunks: {{context_chunks}}
