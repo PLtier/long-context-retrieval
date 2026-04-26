@@ -7,6 +7,7 @@ You are given a **target chunk** from a legal text and the **context chunks** it
 - **Context chunks**: The chunks explicitly referenced by the target chunk.
 - **Neighboring chunks**: chunks adjacent to the target chunk (i.e., the immediately preceding and maybe also following chunks in the document, coming from the same legal paragraph), if exist. They may or may not be explicitly referenced by the target chunk. 
 -**about the statement, targets the target chunk** - it means it asks about new piece of information that is established in the target chunk. It does not mean simply referencing the target chunk.
+
 ---
 
 **Your task**: Generate exactly one realistic, natural-language retrieval query satisfying ALL of the following conditions:
@@ -19,26 +20,30 @@ Key conditions:
 2. **However, the retriever requires context chunks** - for the target chunk to be selected as positive, at least some of the context chunks are required. The target chunk will *not* be retrieved on its own merit.
     - That means, that the query should contain information that is only found in the context chunks, and that is required to understand the target chunk.
 
-3. **ONLY IS questions** - most likely this is the only reasonable way to construct the question about the target chunk. You can ask if the statement is the true, and subsitute the pinpoint citations with the information from the context chunks.
-    - No questions about WHO/WHAT/WHICH as these are likely to be about the context chunks.
-
 Clarifications:
-
 3. **Query does not need to be dependent on all context chunks** - it is fine to use at least one context chunk (and obviously a target chunk), but it is not necessary to use all of them. 
 
 4. **The query does not contain explicit references to the context chunks ** - the point is that if you are crafting a query, that contains the relationship between the target chunk and context chunks, speak about the contents of the context chunk, not simply place its identifier like "Article 5 paragraph 2 point 3 letter a". This totally misses the point.
 
-5. **No multiple questions hidden the query**: again, please create query poiting to a SINGLE statement made in the target chunk.
+5. **No multiple questions hidden the query**: create query poiting to a SINGLE statement made in the target chunk.
 
-6. **Use of the Neighboring chunks**: They might be helpful to understand the target chunk and the context chunks. However, a neighboring chunk should not be the basis for the query, unless it is explicitly referenced. Then, treat a neighbouring chunk as a context chunk.
+6. **Use of the Neighboring chunks**: They might be helpful to understand the target chunk.
 
 7. **Avoid unnecessary lexical overlap**: The query should not simply repeat the same words as the target chunk, but rather use different wording to express the same meaning. This is to ensure that the retriever is not just matching keywords, but actually understanding the content. However, ensure that the words that are crucial, especially domain-specific terms, are not changed to the point of losing the interpretability and the clear connection between the query and the target chunk.
 
-8. **Expand the pinpoint citations so that a retriever gets confused** - the best query is such, that it holds to the condition 3 and also contains much keywords from the context chunks, so that a simple lexical retriever would get confused. However, do not remove or change the keywords and terms which would loose the connection with the target chunk and make it uninterpretable. Avoid adding pinpoint citations, focus on the content of the context chunks.
+--- 
 
---- Examples of good and bad queries ---
+**Suggested approach to creating queries**:
 
-In Danish:
+Pick the target chunk. Substitute the pinpoint citations with the relevant contents of the corresponding context chunks contents.
+Then, craft a question which which directly asks about the statement in the target chunk, but contains much of the content from the context chunks, so that a simple lexical retriever would get confused.
+Usually, you the best question are starting with Do/Does/Is/Are, but also under which conditions, when, etc. can be good. Avoid WHO/WHAT/WHICH as they are likely to be about the context chunks.
+
+---
+
+**Examples**:
+
+1. In Danish:
 
 Target chunk: § 10. Stk. 2. For ansatte omfattet af § 2, nr. 3, finder stk. 1, nr. 2, ikke anvendelse.
 
@@ -53,9 +58,7 @@ Good query: Får ansatte, der er udsendt til tjeneste uden for landet for at sik
 
 Bad query: Hvilke ansatte får ikke særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
 
----
-
-In Polish:
+2. In Polish:
 
 Target chunk: 2. Do żołnierzy, o których mowa w § 2 pkt 2 lit. e, nie stosuje się ust. 1 pkt 2.
 
@@ -69,13 +72,22 @@ Bad query: Jacy żołnierze nie otrzymują dodatku wojennego za każdy dzień wy
 
 ---
 
-**Output:**
-Return only the query — a single question, in the same language as the input legal text. No explanation, no preamble, no quotation marks.
+**Tactic**:
+
+1. Read the target chunk and identify the statement that is made in it, which is dependent on some context chunks. If there are multiple statements, pick one of them. Read neighboring chunks to better understand the target chunk.
+2. Read the context chunks; read also their implicit context / neighboring chunks if provided. Mentally map the pinpoint citations in the target chunk to the context chunks. 
+3. Craft the query as per conditions and clarifications.
 
 Reason in English regardless of the language of the input chunks.
 
+---
+
+**Output:**
+
 Return a JSON object with exactly one key:
+
 - "query": a single question in the same language as the input legal text
+No explanation, no preamble, no quotation marks.
 
 ---
 
@@ -83,4 +95,11 @@ Return a JSON object with exactly one key:
 - **Target chunk**: {{chunk}}
 - **Neighboring chunks**: {{impl_context_chunks}}
 - **Context chunks**: {{context_chunks}}
+
+**Input Notes:**
+The target chunk refereces the context chunks using pinpoint citations e.g. "art. 45 ust. 2 pkt 1 ustawy". However, depending on the proximity of the context chunk, this reference might be abbreviated e.g. "ust. 2 pkt 1". 
+It might be that the target chunk refers the context chunk by a pinpoint citation abbreviation, and then the context chunks is prefixed with even shorter abbreviation e.g. "pkt 1". 
+Therefore, before coming up with the answer, try to map the pinpoint citation in the target chunk to the context chunks. All context chunks provided have been explicitly referenced in the target chunk.
+Also, at the bottom of the context chunks, you might find their implictit context / neighboring chunks. Please use them to understand the context chunks. Do not target them though.
+Context chunks also contain their internal ids; they are to help you map context chunks to their own implicit context.
 

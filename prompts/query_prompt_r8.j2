@@ -50,9 +50,7 @@ Your query must be constructed so that this reasoning applies: without the targe
 
 **Examples**
 
----
-
-In Danish:
+1. In Danish:
 
 Target chunk: § 10. Stk. 2. For ansatte omfattet af § 2, nr. 3, finder stk. 1, nr. 2, ikke anvendelse.
 
@@ -67,9 +65,7 @@ BAD query: Får ansatte, der er udsendt til tjeneste uden for landet for at sikr
 
 GOOD query: Hvilke ansatte får ikke særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
 
----
-
-In Polish:
+2. In Polish:
 
 Target chunk: 2. Do żołnierzy, o których mowa w § 2 pkt 2 lit. e, nie stosuje się ust. 1 pkt 2.
 
@@ -81,13 +77,17 @@ BAD query: Czy żołnierze zawodowi, którzy są skierowani do pełnienia służ
 
 GOOD query: Jacy żołnierze nie otrzymują dodatku wojennego za każdy dzień wykonywania zadań?
 
-
 ---
 
 **Tactic**:
+
 1. Mentally map the pinpoint citations in the target chunk to the context chunks. 
 2. Identify which context chunk is the one you want to target.
-3. Craft the query as per conditions and clarifications.
+3. Craft the query as per conditions and clarifications. Usually the best queries targetting a context chunk start with WHO/WHAT/WHICH.
+
+Reason in English regardless of the language of the input chunks.
+
+---
 
 **Output:**
 
@@ -95,14 +95,11 @@ Return a JSON object with exactly two keys:
 - "target_context_chunk_id": the exact chunk_id of the targeted context chunk
 - "query": a single question in the same language as the input legal text
 
-The `TARGET_CONTEXT_CHUNK_ID` must be copied exactly from the provided context chunks.  
+The `target_context_chunk_id` must be copied exactly from the provided context chunks.  
 It must be the id of the single context chunk in which the answer is fully established.  
 Do not output more than one chunk id.
 
-
-No explanation, no preamble, no quotation marks around the query, and no extra text. The output must in the same language as the input legal text.
-
-Reason in English regardless of the language of the input chunks.
+No explanation, no preamble, no quotation marks around the query, and no extra text. The query must be in the same language as the input legal text.
 
 ---
 
@@ -112,7 +109,10 @@ Reason in English regardless of the language of the input chunks.
 - **Neighboring chunks**: {{impl_context_chunks}}
 - **Context chunks**: {{context_chunks}}
 
-**Input notes**:
+**Input Notes:**
 The target chunk refereces the context chunks using pinpoint citations e.g. "art. 45 ust. 2 pkt 1 ustawy". However, depending on the proximity of the context chunk, this reference might be abbreviated e.g. "ust. 2 pkt 1". 
 It might be that the target chunk refers the context chunk by a pinpoint citation abbreviation, and then the context chunks is prefixed with even shorter abbreviation e.g. "pkt 1". 
 Therefore, before coming up with the answer, try to map the pinpoint citation in the target chunk to the context chunks. All context chunks provided have been explicitly referenced in the target chunk.
+Also, at the bottom of the context chunks, you might find their implictit context / neighboring chunks. Please use them to understand the context chunks. Do not target them though.
+Context chunks also contain their internal ids; they are to help you map context chunks to their own implicit context.
+

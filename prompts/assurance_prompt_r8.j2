@@ -26,6 +26,8 @@ You are given a **query**, **context chunks**, and a **target chunk** that refer
 
 **Your task**: Evaluate the query against the criteria below. Reason through each before giving a verdict.
 
+Reason in English regardless of the language of the input chunks.
+
 **Criterion 1 — Query–context chunk relevance** Is the answer to the query fully established in exactly one context chunk — namely the targeted context chunk — and not in the target chunk or neighboring chunks? The target chunk may make that targeted context chunk relevant, but it must not contribute any part of the answer. → Expected: Yes
 
 **Criterion 2 — Context chunk alone retrievability** Given only the query and the targeted context chunk, would the targeted context chunk still look like the correct answer on its own, even if the query includes additional conditions or exceptions that are only stated in the target chunk? → Expected: No
@@ -42,10 +44,11 @@ In particular, fail the item if, without the target chunk, a reasonable annotato
 
 **Criterion 6 — Correct context chunk is being targeted** Does the query actually target the claimed targeted context chunk, rather than another context chunk or multiple context chunks at once? → Expected: **Yes**
 
+**Final verdict: [Yes / No]** Yes = Criterion 1 is Yes, Criterion 2 is No, Criterion 3 is Yes, Criterion 4 is Yes, Criterion 5 is No, Criterion 6 is Yes. No = Otherwise.
 
 --- Examples of good and bad queries ---
 
-In Danish:
+2. In Danish:
 
 Target chunk: § 10. Stk. 2. For ansatte omfattet af § 2, nr. 3, finder stk. 1, nr. 2, ikke anvendelse.
 
@@ -59,8 +62,8 @@ No neighboring chunks.
 BAD query: Får ansatte, der er udsendt til tjeneste uden for landet for at sikre driften af en offentlig institution i dens tjenesteområde, særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
 
 GOOD query: Hvilke ansatte får ikke særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
----
-In Polish:
+
+2. In Polish:
 
 Target chunk: 2. Do żołnierzy, o których mowa w § 2 pkt 2 lit. e, nie stosuje się ust. 1 pkt 2.
 
@@ -72,11 +75,6 @@ BAD query: Czy żołnierze zawodowi, którzy są skierowani do pełnienia służ
 
 GOOD query: Jacy żołnierze nie otrzymują dodatku wojennego za każdy dzień wykonywania zadań?
 
-
----
-
-**Final verdict: [Yes / No]** Yes = Criterion 1 is Yes, Criterion 2 is No, Criterion 3 is Yes, Criterion 4 is Yes, Criterion 5 is No, Criterion 6 is Yes. No = Otherwise.
-
 ---
 
 **Output**:
@@ -85,8 +83,6 @@ Return a JSON object with the following keys:
 - "criterion_1" through "criterion_6": one sentence summary per criterion
 - "answer_to_query": brief phrase or sentence answering the query
 - "verdict": exactly "Yes" or "No"
-
-Reason in English regardless of the language of the input chunks.
 
 ---
 
