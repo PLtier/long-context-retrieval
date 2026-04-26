@@ -140,12 +140,21 @@ class QueryGenerator(QueryMapper):
         self.jsonl_filename = "queries"
         self.context_col = context_col
         self.impl_context_col = impl_context_col
+        self.prompt_template = prompt_template
         # Setup Jinja2 environment
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("query_prompt_r6.j2")
+        self.template = self.jinja_env.get_template(self.prompt_template)
+        # Select schema based on prompt template
+        if "r4" in self.prompt_template:
+            self.response_format = QUERY_SCHEMA_R4
+        elif "r8" in self.prompt_template:
+            self.response_format = QUERY_SCHEMA_R8
+        else:
+            logger.error(f"No corresponding QUERY_SCHEMA for prompt template: {self.prompt_template}")
+            raise ValueError(f"No corresponding QUERY_SCHEMA for prompt template: {self.prompt_template}")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template
@@ -231,12 +240,21 @@ class QueryAssurance(QueryMapper):
         super().__init__(query_formatter, llm_name, provider, save_path, start_from_checkpoint, save_jsonl)
         self.max_tokens = 200
         self.jsonl_filename = "assurance_results"
+        self.prompt_template = prompt_template
         # Setup Jinja2 environment
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(PROMPTS_DIR)),
             autoescape=select_autoescape()
         )
-        self.template = self.jinja_env.get_template("assurance_prompt_r6.j2")
+        self.template = self.jinja_env.get_template(self.prompt_template)
+        # Select schema based on prompt template
+        if "r4" in self.prompt_template:
+            self.response_format = ASSURANCE_SCHEMA_R4
+        elif "r8" in self.prompt_template:
+            self.response_format = ASSURANCE_SCHEMA_R8
+        else:
+            logger.error(f"No corresponding ASSURANCE_SCHEMA for prompt template: {self.prompt_template}")
+            raise ValueError(f"No corresponding ASSURANCE_SCHEMA for prompt template: {self.prompt_template}")
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         # Render the prompt from the Jinja2 template

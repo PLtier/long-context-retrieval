@@ -21,6 +21,7 @@ async def _generate_queries(
     chain_context: bool = False,
     impl_context_col: str = "implicit_context_chunks_ids",
     context_col: str = "context_chunks_ids",
+    prompt_template: str = None,
 ):
     for dataset in datasets:
         path = DATASETS[dataset].get("path", dataset)
@@ -37,6 +38,7 @@ async def _generate_queries(
             save_jsonl=save_jsonl,
             impl_context_col=impl_context_col,
             context_col=context_col,
+            prompt_template=prompt_template or "query_prompt_r4.j2"
         )
         await queries_generator.generate(chain_context=chain_context)
         print(f"Queries for dataset {dataset} generated and saved to {save_path}")
@@ -55,6 +57,7 @@ def generate_queries(
     impl_context_col: str = "implicit_context_chunks_ids",
     context_col: str = "context_chunks_ids",
     
+    prompt_template: str = "query_prompt_r4.j2",
     # -----------------------------------------
 ):
     asyncio.run(_generate_queries(documents_base_dir, datasets, save_path, llm, provider, start_from_checkpoint, save_jsonl, chain_context, impl_context_col, context_col))
@@ -70,10 +73,10 @@ def assure_queries(
     save_jsonl: bool = True,
     provider: str = "openrouter",
     
+    prompt_template: str = "assurance_prompt_r4.j2",
     # -----------------------------------------
 ):
     for dataset in datasets:
-        # path = DATASETS[dataset].get("path", dataset)
         ds_formatter = DataFormatter()
         ds_formatter.load_from_jsonl(f"{queries_base_dir}/{dataset}.jsonl", query_or_dataset="queries")
 
@@ -84,6 +87,7 @@ def assure_queries(
             save_path,
             start_from_checkpoint=start_from_checkpoint,
             save_jsonl=save_jsonl,
+            prompt_template=prompt_template
         )
         asyncio.run(assurance.generate())
         print(f"Assurance for dataset {dataset} generated and saved to {save_path}")     
