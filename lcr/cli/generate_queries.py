@@ -21,10 +21,12 @@ async def _generate_queries(
     chain_context: bool = False,
     impl_context_col: str = "implicit_context_chunks_ids",
     context_col: str = "context_chunks_ids",
+    update_queries: bool = False,
     prompt_template: str = None,
 ):
     for dataset in datasets:
         path = DATASETS[dataset].get("path", dataset)
+        print(path)
 
         ds_formatter = DataFormatter()
         ds_formatter.load_from_jsonl(f"{documents_base_dir}/{path}.jsonl", query_or_dataset="documents")
@@ -38,6 +40,7 @@ async def _generate_queries(
             save_jsonl=save_jsonl,
             impl_context_col=impl_context_col,
             context_col=context_col,
+            update_queries=update_queries,
             prompt_template=prompt_template or "query_prompt_r4.j2"
         )
         await queries_generator.generate(chain_context=chain_context)
@@ -56,11 +59,12 @@ def generate_queries(
     chain_context: bool = False,
     impl_context_col: str = "implicit_context_chunks_ids",
     context_col: str = "context_chunks_ids",
+    update_queries: bool = False,
     
     prompt_template: str = "query_prompt_r4.j2",
     # -----------------------------------------
 ):
-    asyncio.run(_generate_queries(documents_base_dir, datasets, save_path, llm, provider, start_from_checkpoint, save_jsonl, chain_context, impl_context_col, context_col))
+    asyncio.run(_generate_queries(documents_base_dir, datasets, save_path, llm, provider, start_from_checkpoint, save_jsonl, chain_context, impl_context_col, context_col, update_queries, prompt_template))
 
 @app.command()
 def assure_queries(
