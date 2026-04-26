@@ -7,6 +7,7 @@ from datasets import Dataset, load_from_disk
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from loguru import logger
 from openai import AsyncOpenAI
+import pandas
 from tqdm import tqdm
 from tqdm.asyncio import tqdm as atqdm
 
@@ -27,7 +28,25 @@ class QueryMapper:
         self.save_jsonl: bool = save_jsonl
         self.context_col: str = context_col
         self.impl_context_col: str = impl_context_col
-        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(30)
+        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(50)
+        self.response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "generic_response_schema",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "result": {
+                            "type": "string",
+                            "description": "The generated result"
+                        }
+                    },
+                    "required": ["result"],
+                    "additionalProperties": False
+                }
+            }
+        }
 
         if provider == "openrouter":
             self._client = AsyncOpenAI(
@@ -61,7 +80,10 @@ class QueryMapper:
                         # max_tokens=self.max_tokens,
                         # temperature=0.0,
                         # extra_body={"reasoning": {"enabled": False}},
-                        reasoning_effort = "medium",
+                        reasoning_effort = "low",
+                        # response_format={"type": "json_object"},
+                        response_format=self.response_format,
+                        extra_body = {"plugins": [{"id": "response-healing"}]}
 
                     )
                 choices = getattr(response, "choices", None)
@@ -96,13 +118,15 @@ class QueryMapper:
 
     def _load_existing(self):
         """Load existing queries from HuggingFace dataset if checkpointing."""
-        if self.save_path.exists():
+        jsonl_path = self.save_path / "queries.jsonl"
+        if jsonl_path.exists():
             try:
-                ds = load_from_disk(str(self.save_path))
-                logger.info(f"Loaded {len(ds)} queries from checkpoint at {self.save_path}")
+                with open(jsonl_path, "r", encoding="utf-8") as f:
+                    ds = [json.loads(line) for line in f]
+                logger.info(f"Loaded existing augmented documents from {jsonl_path}. Resuming augmentation.")
                 return ds
             except Exception as e:
-                logger.warning(f"Failed to load checkpoint from {self.save_path}: {e}")
+                logger.error(f"Failed to load existing augmented documents from {jsonl_path}. Starting fresh. Error: {e}")
         return []
 
     def _save(self):
@@ -132,14 +156,59 @@ class QueryMapper:
     
 
 
+QUERY_SCHEMA_R8 = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "retrieval_query_schema",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "target_context_chunk_id": {
+                    "type": "string",
+                    "description": "The exact chunk_id of the targeted context chunk"
+                },
+                "query": {
+                    "type": "string",
+                    "description": "The generated retrieval query"
+                }
+            },
+            "required": ["target_context_chunk_id", "query"],
+            "additionalProperties": False
+        }
+    }
+}
+
+# Schema for query_prompt_r4.j2 (only 'query' key)
+QUERY_SCHEMA_R4 = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "retrieval_query_schema_r4",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The generated retrieval query"
+                }
+            },
+            "required": ["query"],
+            "additionalProperties": False
+        }
+    }
+}
+
+
 class QueryGenerator(QueryMapper):
     """Generates queries given a chunk and its context."""
-    def __init__(self, doc_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, context_col: str = "context_chunks_ids", impl_context_col: str = ""):
+    def __init__(self, doc_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, context_col: str = "context_chunks_ids", impl_context_col: str = "", update_queries: bool = False, prompt_template: str = "query_prompt_r4.j2"):
         super().__init__(doc_formatter, llm_name, provider, save_path, start_from_checkpoint, save_jsonl)
         self.max_tokens = 200
         self.jsonl_filename = "queries"
         self.context_col = context_col
         self.impl_context_col = impl_context_col
+        self.update_queries = update_queries
         self.prompt_template = prompt_template
         # Setup Jinja2 environment
         self.jinja_env = Environment(
@@ -161,12 +230,27 @@ class QueryGenerator(QueryMapper):
         return self.template.render(**fields)
 
     async def get_result(self, fields: dict[str, str]) -> dict[str, str]:
-        query = await self._generate(fields)
-        result = {
-            "query": query,
+        raw = await self._generate(fields)
+        try:
+            parsed = json.loads(raw)  # guaranteed valid if json_schema worked
+            obj = {
+            "chunk_id": fields["chunk_id"],
+            "query": parsed["query"],
+            **fields,
         }
-        result.update(fields)
-        return result
+            if "target_context_chunk_id" in parsed:
+                obj["target_context_chunk_id"] = parsed["target_context_chunk_id"]
+            return obj
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {raw}. Error: {e}")
+            obj ={
+                "chunk_id": fields["chunk_id"],
+                "query": raw,
+                **fields,
+            }
+            if "target_context_chunk_id" in self.response_format["json_schema"]["schema"]["properties"]:
+                obj["target_context_chunk_id"] = "<PARSING_FAILURE>"
+            return obj
 
     async def generate(self, chain_context: bool = True):
         # Load checkpoint if needed
@@ -231,12 +315,55 @@ class QueryGenerator(QueryMapper):
         self._save()
         logger.info("Done generating queries.")
 
+ASSURANCE_SCHEMA_R8 = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "assurance_result",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "criterion_1": {"type": "string"},
+                "criterion_2": {"type": "string"},
+                "criterion_3": {"type": "string"},
+                "criterion_4": {"type": "string"},
+                "criterion_5": {"type": "string"},
+                "criterion_6": {"type": "string"},
+                "answer_to_query": {"type": "string"},
+                "verdict": {"type": "string", "enum": ["Yes", "No"]}
+            },
+            "required": ["criterion_1","criterion_2","criterion_3","criterion_4","criterion_5","criterion_6","answer_to_query","verdict"],
+            "additionalProperties": False
+        }
+    }
+}
 
+# Schema for assurance_prompt_r4.j2 (4 criteria)
+ASSURANCE_SCHEMA_R4 = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "assurance_result_r4",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "criterion_1": {"type": "string"},
+                "criterion_2": {"type": "string"},
+                "criterion_3": {"type": "string"},
+                "criterion_4": {"type": "string"},
+                "answer_to_query": {"type": "string"},
+                "verdict": {"type": "string", "enum": ["Yes", "No"]}
+            },
+            "required": ["criterion_1","criterion_2","criterion_3","criterion_4","answer_to_query","verdict"],
+            "additionalProperties": False
+        }
+    }
+}
 
 
 class QueryAssurance(QueryMapper):
     """Goes through the generated queries and performs a check on them. Requires DataFormatter to have loaded queries."""
-    def __init__(self, query_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True):
+    def __init__(self, query_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, prompt_template: str = "assurance_prompt_r4.j2"):
         super().__init__(query_formatter, llm_name, provider, save_path, start_from_checkpoint, save_jsonl)
         self.max_tokens = 200
         self.jsonl_filename = "assurance_results"
@@ -261,13 +388,20 @@ class QueryAssurance(QueryMapper):
         return self.template.render(**fields)
 
     async def get_result(self, fields: dict[str, str]) -> dict[str, str]:
-        chunk_id = fields.get('chunk_id', "")
-        passes_assurance = await self._generate(fields)
-        result = {
-            "chunk_id": chunk_id,
-            "passes_assurance": passes_assurance
-        }
-        return result
+        raw = await self._generate(fields)
+        try: 
+            parsed = json.loads(raw)
+            return {
+                "chunk_id": fields["chunk_id"],
+                "passes_assurance": parsed["verdict"],
+                **{k: v for k, v in parsed.items() if k != "verdict"},
+            }
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {raw}. Error: {e}")
+            return {
+                "chunk_id": fields["chunk_id"],
+                "passes_assurance": "<PARSING_FAILURE>" + raw,
+            }
 
     async def generate(self):
         # Load checkpoint if needed
