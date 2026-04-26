@@ -165,17 +165,29 @@ class QueryGenerator(QueryMapper):
         existing_ids = set()
         if self.start_from_checkpoint:
             existing = self._load_existing()
-            existing_ids = existing['chunk_id'] # they are already unique
-            self.queries = list(existing)
+            # print(existing[:2])
+            existing_ids = set(chunk["chunk_id"] for chunk in existing) # they are already unique
+            # print(existing_ids)
+            # print(f"\n self.update_queries: {self.update_queries}")
+            if not self.update_queries:
+                self.queries = list(existing)
         else:
             self.queries = []
 
         # Each pair: (chunk, context_chunks)
         # Assign a chunk_id (could be index or hash)
         pairs_with_id = []
+        print(existing_ids)
+        print(f"\n self.update_queries: {self.update_queries}")
+        print(self.ds_formatter.doc_dataset[:2])
         for chunk_id, chunk, context_chunks, impl_context_chunks in self.ds_formatter.get_chunks_with_context(chain_context=chain_context, context_col=self.context_col, impl_context_col=self.impl_context_col):
-            if chunk_id not in existing_ids:
+            # print(chunk_id)
+            if chunk_id in existing_ids and self.update_queries:
                 pairs_with_id.append((chunk_id, chunk, context_chunks, impl_context_chunks))
+            elif chunk_id not in existing_ids and not self.update_queries:
+                pairs_with_id.append((chunk_id, chunk, context_chunks, impl_context_chunks))
+                
+
 
         total = len(pairs_with_id)
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")

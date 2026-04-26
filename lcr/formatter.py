@@ -86,7 +86,14 @@ class DataFormatter():
         return list(df_by_doc_id["query"].apply(list)), list(df_by_doc_id["chunk_id"].apply(list))
         
     def get_chunks_with_context(self, col="chunk", context_col="context_chunks_ids", impl_context_col="", chain_context: bool = False, sample_size=0) -> Generator[tuple[str, str, str, str], None, None]:
-        """Return the chunk and its context, concatenated. Generator"""
+        """
+        It returns:
+        - chunk_id: str
+        - chunk_text: str
+        - context: str (concatenated context chunks) WITH each one prefixed with its chunk_id (for better interpretability) AND with their implicit contexts 
+        - impl_context_target: str - it is the concatenation of the chunks in impl_context_col, for the chunk.
+        
+        """
         # for chunk_id, chunk, context_ids in zip(self.doc_dataset['chunk_id'], self.doc_dataset[col], self.doc_dataset[context_col]):
 
 
@@ -94,20 +101,20 @@ class DataFormatter():
 
         candidate_chunks = [chunk for chunk in chunk_lookup.values() if chunk[context_col]] # filter to only those with context
         # FOR DEV PURPOSES:
+
+        # if type(candidate_chunks[0][context_col]) is str:
+        #     # it means context_col already contains concatenated text
+        #     for chunk in candidate_chunks:
+        #         chunk_id: str = chunk['chunk_id']
+        #         chunk_text: str = chunk[col]
+        #         context: str = chunk[context_col]
+        #         impl_context: str = ""
+        #         if impl_context_col:
+        #             impl_context = chunk[impl_context_col]
+        #         yield chunk_id, chunk_text, context, impl_context
+
         # sample_size = 5
         # TODO: remove after testing
-
-        if type(candidate_chunks[0][context_col]) is str:
-            # it means context_col already contains concatenated text
-            for chunk in candidate_chunks:
-                chunk_id: str = chunk['chunk_id']
-                chunk_text: str = chunk[col]
-                context: str = chunk[context_col]
-                impl_context: str = ""
-                if impl_context_col:
-                    impl_context = chunk[impl_context_col]
-                yield chunk_id, chunk_text, context, impl_context
-
         if sample_size is not None and sample_size != 0:
             candidate_chunks = random.sample(candidate_chunks, min(sample_size, len(candidate_chunks))) # sample from
 
