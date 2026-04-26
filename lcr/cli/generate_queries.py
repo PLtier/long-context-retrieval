@@ -41,7 +41,8 @@ async def _generate_queries(
             impl_context_col=impl_context_col,
             context_col=context_col,
             update_queries=update_queries,
-            prompt_template=prompt_template or "query_prompt_r4.j2"
+            prompt_template=prompt_template or "query_prompt_r4.j2",
+            input_queries_dir=str(documents_base_dir),
         )
         await queries_generator.generate(chain_context=chain_context)
         print(f"Queries for dataset {dataset} generated and saved to {save_path}")

@@ -116,9 +116,9 @@ class QueryMapper:
         logger.error("[Failure] Marking query as <QUERY_GENERATION_FAILURE>.")
         return "<QUERY_GENERATION_FAILURE>"
 
-    def _load_existing(self):
+    def _load_existing(self, path: Path | None = None):
         """Load existing queries from HuggingFace dataset if checkpointing."""
-        jsonl_path = self.save_path / "queries.jsonl"
+        jsonl_path = (path or self.save_path) / "queries.jsonl"
         if jsonl_path.exists():
             try:
                 with open(jsonl_path, "r", encoding="utf-8") as f:
@@ -202,13 +202,14 @@ QUERY_SCHEMA_R4 = {
 
 class QueryGenerator(QueryMapper):
     """Generates queries given a chunk and its context."""
-    def __init__(self, doc_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, context_col: str = "context_chunks_ids", impl_context_col: str = "", update_queries: bool = False, prompt_template: str = "query_prompt_r4.j2"):
+    def __init__(self, doc_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, context_col: str = "context_chunks_ids", impl_context_col: str = "", update_queries: bool = False, prompt_template: str = "query_prompt_r4.j2", input_queries_dir: str | None = None):
         super().__init__(doc_formatter, llm_name, provider, save_path, start_from_checkpoint, save_jsonl)
         self.max_tokens = 200
         self.jsonl_filename = "queries"
         self.context_col = context_col
         self.impl_context_col = impl_context_col
         self.update_queries = update_queries
+        self.input_queries_dir = Path(input_queries_dir) if input_queries_dir else None
         self.prompt_template = prompt_template
         # Setup Jinja2 environment
         self.jinja_env = Environment(
@@ -257,7 +258,8 @@ class QueryGenerator(QueryMapper):
         existing = []
         existing_ids = set()
         if self.start_from_checkpoint:
-            existing = self._load_existing()
+            load_path = self.input_queries_dir if self.update_queries and self.input_queries_dir else None
+            existing = self._load_existing(path=load_path)
             # print(existing[:2])
             existing_ids = set(chunk["chunk_id"] for chunk in existing) # they are already unique
             # print(existing_ids)
