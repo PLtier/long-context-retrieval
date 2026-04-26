@@ -14,8 +14,8 @@ for cluster in "$PROCESSED_BASE"/cluster_*; do
                 --datasets queries \
                 --save-path "$dataset" \
                 --no-start-from-checkpoint \
-                --llm "OpenAI/gpt-oss-120B" \
-                --provider "together"
+                --llm "ge" \
+                --provider "openrouter"
             python lcr/visualisation/visualise_jsonl.py "$dataset/assurance_results.jsonl" --preset assurance_results
         fi
     done
