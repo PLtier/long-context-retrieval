@@ -60,16 +60,17 @@ def eval(
             'query': query,
             'gt_chunk_text': gt_text,
             'gt_chunk_id': gt_id,
+            'gt_chunk_rank': None,
             'pred_chunks': []
         }
         if not pred_scores:
             p_chunk_id = ''
             p_chunk = ''
         else:
-            top_chunks = sorted(pred_scores, key=pred_scores.get, reverse=True)[:top_n]
-            
-            # p_chunk_id = max(pred_scores, key=pred_scores.get)
-            # p_chunk = chunk_id_to_text.get(p_chunk_id, '')
+            all_ranked = sorted(pred_scores, key=pred_scores.get, reverse=True)
+            gt_rank = all_ranked.index(gt_id) + 1 if gt_id in all_ranked else None
+            entry['gt_chunk_rank'] = gt_rank
+            top_chunks = all_ranked[:top_n]
             for rank, p_chunk_id in enumerate(top_chunks, start=1):
                 p_chunk_text = chunk_id_to_text.get(p_chunk_id, '')
                 p_chunk_score = pred_scores[p_chunk_id]
