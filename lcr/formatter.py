@@ -119,24 +119,61 @@ class DataFormatter():
             chunk_id: str = source_chunk['chunk_id']
             chunk_text: str = source_chunk[col]
 
-            if chain_context is False:
-                context = " \n ".join([chunk_lookup[context_id][col] for context_id in context_ids if context_id in chunk_lookup])
-            else:
-                fifo = queue.SimpleQueue()
-                marked: set[str] = set()
-                context: list[str] = []
-                fifo.put_nowait(source_chunk)
-                while fifo.empty() is False:
-                    intermediary_chunk = fifo.get_nowait()
-                    targets = [chunk_lookup[context_id] for context_id in intermediary_chunk[context_col] if context_id in chunk_lookup]
-                    if targets:
-                        context.append(intermediary_chunk['chunk_id'])
-                    for target in targets:
-                        if target['chunk_id'] not in marked:
-                            marked.add(target['chunk_id'])
-                            context.append(target[col])
-                            fifo.put_nowait(target)
-                context: str = " \n ".join(context)
+            # context = " \n ".join([chunk_lookup[context_id][col] for context_id in context_ids if context_id in chunk_lookup])
+
+            target_explicit_context_str = ""
+            target_explicit_context = []
+            for context_id in context_ids:
+                if context_id in chunk_lookup:
+                    context_chunk = chunk_lookup[context_id]
+                    target_explicit_context.append(f"{context_chunk[col]} (chunk_id: {context_chunk['chunk_id']})") # prefix with chunk_id for interpretability
+                    # if impl_context_col and context_chunk[impl_context_col]: # if the context chunk has implicit context, add it as well
+                        # context_impl_context = " \n ".join([chunk_lookup[impl_id][col] for impl_id in context_chunk[impl_context_col] if impl_id in chunk_lookup])
+                        # target_explicit_context.append(f"Implicit context / Neighboring chunks, for the chunk {context_chunk['chunk_id']}: {context_impl_context}") # prefix with chunk_id for interpretability
+            target_explicit_context_str = " \n ".join(target_explicit_context)
+            context_implicit_context: dict[str, list[str]] = {} # to help us deduplicate implicit context across different context chunks
+            if impl_context_col:
+                for context_id in context_ids:
+                    if context_id in chunk_lookup:
+                        context_chunk = chunk_lookup[context_id]
+                        if impl_context_col and context_chunk[impl_context_col]: # if the context chunk has implicit context, add it as well
+                            for impl_id in context_chunk[impl_context_col]:
+                                if impl_id in chunk_lookup : # check if impl_id is valid and not already added
+                                    impl_context_chunk = chunk_lookup[impl_id]
+                                    text = impl_context_chunk[col]
+                                if impl_id not in context_implicit_context:
+                                    context_implicit_context[text] = []
+                                context_implicit_context[text].append(context_id)
+            context_implicit_context_str = ""
+            for impl_text, context_chunks_ids in context_implicit_context.items():
+                context_implicit_context_str += f"Chunks with chunk_id: {', '.join(context_chunks_ids)} have the implicit context (neighboring chunks): {impl_text} \n"
+
+                                    # a little bit crazy, but fine
+                                    
+
+
+
+            context = target_explicit_context_str + "\n\n" + context_implicit_context_str
+
+                    
+
+            # if chain_context is False:
+            # else:
+            #     fifo = queue.SimpleQueue()
+            #     marked: set[str] = set()
+            #     context: list[str] = []
+            #     fifo.put_nowait(source_chunk)
+            #     while fifo.empty() is False:
+            #         intermediary_chunk = fifo.get_nowait()
+            #         targets = [chunk_lookup[context_id] for context_id in intermediary_chunk[context_col] if context_id in chunk_lookup]
+            #         if targets:
+            #             context.append(intermediary_chunk['chunk_id'])
+            #         for target in targets:
+            #             if target['chunk_id'] not in marked:
+            #                 marked.add(target['chunk_id'])
+            #                 context.append(target[col])
+            #                 fifo.put_nowait(target)
+            #     context: str = " \n ".join(context)
 
             impl_context = ""
             if impl_context_col:
