@@ -8,7 +8,6 @@ from datasets.load import load_dataset
 import dotenv
 from loguru import logger
 from openai import AsyncOpenAI
-from prompt_toolkit.layout import D
 from tqdm.asyncio import tqdm as atqdm
 
 from lcr.formatter import DataFormatter
@@ -193,6 +192,10 @@ class AnthropicContextualPreprocessor:
             except Exception as e:
                 logger.error(f"Failed to load existing augmented documents from {jsonl_path}. Starting fresh. Error: {e}")
         return []
+    async def _contextualise_with_id(self, merged_doc: str, chunk: str, chunk_id: str, doc_id: str) -> tuple[str, str, str]:
+        ctx = await self._contextualise_chunk(merged_doc, chunk, cache_id=doc_id)
+        return chunk_id, chunk, ctx
+        
 
     async def augment_documents(self, col: str = "chunk") -> None:
         """
@@ -207,36 +210,35 @@ class AnthropicContextualPreprocessor:
             existing_chunk_ids = set(doc["chunk_id"] for doc in existing_ds)
             logger.info(f"Resuming augmentation. {len(existing_chunk_ids)} chunks already contextualised and will be skipped.")
 
-        chunks: list[list[str]]
+        chunk_groups: list[list[str]]
         chunks_ids: list[list[str]]
-        chunks, chunks_ids = self.data_formatter.get_nested(col=col)
+        chunk_groups, chunks_ids = self.data_formatter.get_nested(col=col)
 
         # Build one merged doc string per document group
-        merged_documents = ["\n".join(chunks) for chunks in chunks]
+        merged_documents = ["\n".join(chunk_group) for chunk_group in chunk_groups]
 
 
-        # Create a flat list of (merged_doc, chunk, doc_id) triples
+        # Create a flat list of (merged_doc, chunk, chunk_id) triples
         triples = [
             (merged_documents[i], chunk, chunks_ids[i][j])
-            for i, chunk_group in enumerate(chunks)
+            for i, chunk_group in enumerate(chunk_groups)
             for j, chunk in enumerate(chunk_group)
             if chunks_ids[i][j] not in existing_chunk_ids  # Skip already contextualised chunks
         ]
 
         total = len(triples)
-        print(f"Contextualising {total} chunks across {len(chunks)} documents...")
+        print(f"Contextualising {total} chunks across {len(chunk_groups)} documents...")
+    
 
         # Fire all requests concurrently (semaphore handles back-pressure)
-        tasks = [self._contextualise_chunk(merged_doc, chunk, cache_id = chunk_id.split("_")[0]) for merged_doc, chunk, chunk_id in triples]
+        tasks = [self._contextualise_with_id(merged_doc, chunk, chunk_id, chunk_id.split("_")[0]) for merged_doc, chunk, chunk_id in triples]
         completed = 0
         for coro in atqdm(asyncio.as_completed(tasks), total=total, desc="Contextualising chunks", unit="chunk"):
-            contextualisation = await coro  # Await each completed task to catch exceptions if needed
+            chunk_id, chunk, contextualisation = await coro  # Await each completed task to catch exceptions if needed
 
-            doc_id = triples[completed][2]  # Get corresponding doc_id for this completed task
-            chunk = triples[completed][1]  # Get corresponding chunk for this completed task
             self.augmented_documents.append(
                 {
-                    "chunk_id": doc_id,
+                    "chunk_id": chunk_id,
                     "chunk": contextualisation + " " + chunk,  # Prepend context to original chunk
                 }
             ) 
