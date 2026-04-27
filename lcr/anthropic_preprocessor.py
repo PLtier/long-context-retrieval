@@ -87,10 +87,35 @@ class AnthropicContextualPreprocessor:
             # I think it's fine - let's go.
         )
 
-    async def _contextualise_chunk(self, document: str, chunk: str, cache_id: str ="") -> str:
+    async def double_check(self) -> None:
+        """Smoke-test the API: verifies auth, model availability, and prints context window."""
+        logger.info(f"[SmokeTest] Checking model '{self.contextualisation_model}' on {self.provider}...")
+        try:
+            model_info = await self._client.models.retrieve(self.contextualisation_model)
+            ctx = getattr(model_info, "context_length", None) or getattr(model_info, "context_window", None)
+            logger.info(f"[SmokeTest] Context window: {f'{ctx:,} tokens' if ctx else 'not reported by API'}")
+        except Exception:
+            logger.info("[SmokeTest] Could not retrieve model info — skipping context window check")
+        try:
+            await self._client.chat.completions.create(
+                model=self.contextualisation_model,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+                temperature=0.0,
+            )
+            logger.info("[SmokeTest] Auth and model OK.")
+        except Exception as e:
+            err_str = str(e).lower()
+            if "401" in err_str or "403" in err_str or "unauthorized" in err_str:
+                raise RuntimeError(f"[SmokeTest] Authentication failed for {self.provider}: {e}") from e
+            elif "404" in err_str or "not found" in err_str:
+                raise RuntimeError(f"[SmokeTest] Model '{self.contextualisation_model}' not found on {self.provider}: {e}") from e
+            else:
+                raise RuntimeError(f"[SmokeTest] Unexpected failure: {e}") from e
+
+    async def _contextualise_chunk(self, document: str, chunk: str, cache_id: str = "") -> str:
         """Call OpenRouter async, respecting the concurrency semaphore, with retries."""
         prompt = self._get_contextualisation_prompt(document, chunk)
-        # print(f"Prompt tokens: {len(self.tokenizer.encode(prompt))}")  # Debug token count of the prompt
         max_retries = 3
         for attempt in range(1, max_retries + 1):
             try:
@@ -98,11 +123,9 @@ class AnthropicContextualPreprocessor:
                     response = await self._client.chat.completions.create(
                         model=self.contextualisation_model,
                         messages=[{"role": "user", "content": prompt}],
-                        # max_completion_tokens=512,  # Adjust as needed
-                        temperature=0.0,  # deterministic for retrieval tasks
+                        temperature=0.0,
                         extra_body={"reasoning": {"effort": "low"}, "provider": {"order": ["deepinfra"], "allow_fallbacks": False}, "prompt_cache_key": cache_id}
                     )
-                # Defensive: check response structure and content
 
                 usage = getattr(response, "usage", None)
                 if usage:
@@ -115,7 +138,7 @@ class AnthropicContextualPreprocessor:
                         reasoning_tokens = getattr(ctd, "reasoning_tokens", None)
                 else:
                     cost = completion_tokens = reasoning_tokens = None
-                
+
                 with open(self.save_dir / "debug_response.json", "w", encoding="utf-8") as f:
                     json.dump({
                         "cost": cost,
@@ -123,60 +146,52 @@ class AnthropicContextualPreprocessor:
                         "completion_tokens": completion_tokens,
                         "cache_id": cache_id,
                     }, f, ensure_ascii=False, indent=4)
-                
-                # ct  = getattr(response, "completion_tokens", 0)
-                # est = getattr(response, "estimated_cost", None)
-                # cached = 0
-                # write_cache = 0
-                # if ptd is not None:
-                #     cached = getattr(ptd, "cached_tokens", 0) or (ptd.get("cached_tokens") if isinstance(ptd, dict) else 0)
-                #     write_cache = getattr(ptd, "cache_write_tokens", 0) or (ptd.get("cache_write_tokens") if isinstance(ptd, dict) else 0)
-                # logger.info(f"Contextualisation API call successful on attempt {attempt}. Tokens - Prompt: {pt} (Cached: {cached}, Cache Write: {write_cache}), Completion: {ct}, Estimated Cost: {est}")
-                # logger.info(f"Contextualisation API call successful on attempt {attempt}")
-                # logger.info(f"Usage details: {u}")
-                # logger.info(f"Prompt tokens details: {ptd}")
-                # logger.info(f"Cache key used: {cache_id}")
-                # print hash of the document and chunk for debugging
-                # logger.debug(f"Document hash: {hash(document)}, Chunk hash: {hash(chunk)}")
-
 
                 choices = getattr(response, "choices", None)
-
-
-
                 if not choices or not hasattr(choices[0], "message"):
                     raise ValueError("No choices/message in response")
                 content = getattr(choices[0].message, "content", None)
                 if not content or not content.strip():
                     raise ValueError("Empty content in response")
-                context = content.strip()
-                # logger.info(f"Contextualised successfully on attempt {attempt}.")
-                # logger.debug(f"Chunk: {chunk}")
-                # logger.debug(f"Contextualised chunk: {context}")
-                return context + "\n\n"
+                return content.strip() + "\n\n"
+
             except Exception as e:
-                # Identify retryable errors (rate limit, network, etc.)
                 err_str = str(e).lower()
-                is_retryable = (
-                    "rate limit" in err_str or
-                    "429" in err_str or
-                    "timeout" in err_str or
-                    "temporarily unavailable" in err_str or
-                    "connection" in err_str or
-                    "network" in err_str or
-                    "service unavailable" in err_str
+
+                is_context_length = (
+                    "context_length_exceeded" in err_str or
+                    "maximum context length" in err_str or
+                    "context window" in err_str or
+                    "too long" in err_str
                 )
-                if attempt < max_retries and is_retryable:
-                # if attempt < max_retries:
+                if is_context_length:
+                    logger.critical(
+                        f"\n{'='*60}\n"
+                        f"CONTEXT LENGTH EXCEEDED — cache_id={cache_id}\n"
+                        f"Document is too long for '{self.contextualisation_model}'.\n"
+                        f"Skipping this chunk. Reduce document size or switch to a larger model.\n"
+                        f"Error: {e}\n"
+                        f"{'='*60}"
+                    )
+                    return "<CONTEXTUALISATION_FAILURE_CONTEXT_LENGTH>"
+
+                is_fatal = any(code in err_str for code in ("401", "403", "404", "unauthorized", "forbidden", "not found"))
+                if is_fatal:
+                    logger.critical(
+                        f"\n{'='*60}\n"
+                        f"FATAL API ERROR — cache_id={cache_id}, attempt {attempt}\n"
+                        f"Error: {e}\n"
+                        f"{'='*60}"
+                    )
+                    return "<CONTEXTUALISATION_FAILURE>"
+
+                if attempt < max_retries:
                     wait_time = 2 ** (attempt - 1)
-                    logger.warning(f"[Retry {attempt}/{max_retries}] Contextualisation failed due to retryable error: {e}. Retrying in {wait_time}s...")
+                    logger.warning(f"[Retry {attempt}/{max_retries}] cache_id={cache_id}: {e}. Retrying in {wait_time}s...")
                     await asyncio.sleep(wait_time)
-                    continue
                 else:
-                    logger.error(f"[Skip] Contextualisation failed for chunk after {attempt} attempts. Error: {e}")
-                    break
-        # If we reach here, all attempts failed
-        logger.error("[Failure] Marking chunk as <CONTEXTUALISATION_FAILURE>.")
+                    logger.error(f"[Failure] cache_id={cache_id}: all {max_retries} attempts failed. Last error: {e}")
+
         return "<CONTEXTUALISATION_FAILURE>"
 
 
@@ -202,6 +217,7 @@ class AnthropicContextualPreprocessor:
         Fan out ALL chunk-contextualisation calls concurrently,
         then flatten into (text, id) pairs.
         """
+        await self.double_check()
 
         existing_chunk_ids = set()
         if self.start_from_checkpoint:
