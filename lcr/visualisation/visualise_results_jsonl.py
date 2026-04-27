@@ -23,7 +23,9 @@ def render_record(record):
     html.append(f'<div><b>Query:</b> {escape(record.get("query", ""))}</div>')
     gt_id = record.get('gt_chunk_id', 'N/A')
     gt_text = record.get('gt_chunk_text', '')
-    html.append(render_collapsible(f"Ground Truth Chunk: {gt_id}", gt_text, open=True))
+    gt_rank = record.get('gt_chunk_rank', None)
+    gt_rank_str = f" (Rank: {gt_rank})" if gt_rank is not None else ""
+    html.append(render_collapsible(f"Ground Truth Chunk: {gt_id}{gt_rank_str}", gt_text, open=True))
     pred_chunks = record.get('pred_chunks', [])
     html.append(render_pred_chunks(pred_chunks))
     html.append('</div><hr>')
