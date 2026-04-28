@@ -26,11 +26,13 @@ class AnthropicContextualPreprocessor:
     PROVIDER_BASE_URLS = {
         "openrouter": "https://openrouter.ai/api/v1",
         "together": "https://api.together.xyz/v1",
+        "vllm": os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1"),
     }
 
     PROVIDER_API_KEYS = {
         "openrouter": "OPENROUTER_API_KEY",
         "together": "TOGETHER_API_KEY",
+        "vllm": None,
     }
 
     def __init__(
@@ -57,9 +59,12 @@ class AnthropicContextualPreprocessor:
         if provider not in self.PROVIDER_BASE_URLS:
             raise ValueError(f"Unsupported provider: {provider}")
         api_key_env = self.PROVIDER_API_KEYS[provider]
-        api_key = os.getenv(api_key_env)
-        if not api_key:
-            raise ValueError(f"API key for provider '{provider}' not found in environment variable '{api_key_env}'")
+        if api_key_env is None:
+            api_key = "EMPTY"
+        else:
+            api_key = os.getenv(api_key_env)
+            if not api_key:
+                raise ValueError(f"API key for provider '{provider}' not found in environment variable '{api_key_env}'")
         base_url = self.PROVIDER_BASE_URLS[provider]
         self._client = AsyncOpenAI(
             api_key=api_key,
@@ -187,7 +192,7 @@ class AnthropicContextualPreprocessor:
 
                 if attempt < max_retries:
                     wait_time = 2 ** (attempt - 1)
-                    logger.warning(f"[Retry {attempt}/{max_retries}] cache_id={cache_id}: {e}. Retrying in {wait_time}s...")
+                    logger.warning(f"[Retry {attempt}/{max_retries}] cache_id={cache_id}: {e}. {err_str} Retrying in {wait_time}s...")
                     await asyncio.sleep(wait_time)
                 else:
                     logger.error(f"[Failure] cache_id={cache_id}: all {max_retries} attempts failed. Last error: {e}")
@@ -241,6 +246,8 @@ class AnthropicContextualPreprocessor:
             for j, chunk in enumerate(chunk_group)
             if chunks_ids[i][j] not in existing_chunk_ids  # Skip already contextualised chunks
         ]
+
+        self.save_dir.mkdir(parents=True, exist_ok=True)
 
         total = len(triples)
         print(f"Contextualising {total} chunks across {len(chunk_groups)} documents...")
