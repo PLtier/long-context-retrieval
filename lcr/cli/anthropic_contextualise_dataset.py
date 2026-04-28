@@ -15,7 +15,8 @@ async def contextualise_dataset_async(
     chunks_path: str = ".",
     save_dir: str = "./contextualised_datasets",
     provider: str = "openrouter",
-    start_from_checkpoint: bool = False
+    start_from_checkpoint: bool = False,
+    max_concurrent: int = 50,
 ):
     ds_formatter = DataFormatter()
     ds_formatter.load_from_jsonl(chunks_path, query_or_dataset="documents")
@@ -24,7 +25,8 @@ async def contextualise_dataset_async(
         contextualisation_model=contextualisation_model,
         provider=provider,
         save_dir=save_dir,
-        start_from_checkpoint=start_from_checkpoint
+        start_from_checkpoint=start_from_checkpoint,
+        max_concurrent=max_concurrent,
     )
     await preprocessor.augment_documents()
 
@@ -35,14 +37,15 @@ def contextualise_dataset(
     chunks_path: str = ".",
     save_dir: str = "./contextualised_datasets",
     provider: str = "openrouter",
-    start_from_checkpoint: bool = False
+    start_from_checkpoint: bool = False,
+    max_concurrent: int = 50,
 ):
     """
     Contextualise a dataset using the specified model and provider.
-    provider: 'openrouter' or 'together'
+    provider: 'openrouter', 'together', or 'vllm'
     """
     asyncio.run(contextualise_dataset_async(
-        contextualisation_model, chunks_path, save_dir, provider, start_from_checkpoint
+        contextualisation_model, chunks_path, save_dir, provider, start_from_checkpoint, max_concurrent
     ))
 
 
