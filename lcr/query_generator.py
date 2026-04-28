@@ -80,11 +80,14 @@ class QueryMapper:
                         # max_tokens=self.max_tokens,
                         # temperature=0.0,
                         # extra_body={"reasoning": {"enabled": False}},
-                        reasoning_effort = "low",
+                        # reasoning_effort = "high",
                         # response_format={"type": "json_object"},
                         response_format=self.response_format,
-                        extra_body = {"plugins": [{"id": "response-healing"}]}
-
+                        extra_body={
+                            "plugins": [{"id": "response-healing"}],
+                            "reasoning": {"effort": "high", "exclude": True},
+                            "provider": {"require_parameters": True},
+                        },
                     )
                 choices = getattr(response, "choices", None)
                 if not choices or not hasattr(choices[0], "message"):
@@ -122,7 +125,7 @@ class QueryMapper:
         if jsonl_path.exists():
             try:
                 with open(jsonl_path, "r", encoding="utf-8") as f:
-                    ds = [json.loads(line) for line in f]
+                    ds = [json.loads(line) for line in f if line.strip()]
                 logger.info(f"Loaded existing augmented documents from {jsonl_path}. Resuming augmentation.")
                 return ds
             except Exception as e:
@@ -200,6 +203,32 @@ QUERY_SCHEMA_R4 = {
 }
 
 
+QUERY_SCHEMA_R9 = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "retrieval_query_schema_r9",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "utilized_context_chunk_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of chunk_ids of the context chunks actually used to generate the query."
+                },
+                "query": {
+                    "type": "string",
+                    "description": "The generated retrieval query."
+                }
+            },
+            "required": ["utilized_context_chunk_ids", "query"],
+            "additionalProperties": False
+        }
+    }
+}
+
+
+
 class QueryGenerator(QueryMapper):
     """Generates queries given a chunk and its context."""
     def __init__(self, doc_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, context_col: str = "context_chunks_ids", impl_context_col: str = "", update_queries: bool = False, prompt_template: str = "query_prompt_r4.j2", input_queries_dir: str | None = None):
@@ -222,6 +251,8 @@ class QueryGenerator(QueryMapper):
             self.response_format = QUERY_SCHEMA_R4
         elif "r8" in self.prompt_template:
             self.response_format = QUERY_SCHEMA_R8
+        elif "r9" in self.prompt_template:
+            self.response_format = QUERY_SCHEMA_R9
         else:
             logger.error(f"No corresponding QUERY_SCHEMA for prompt template: {self.prompt_template}")
             raise ValueError(f"No corresponding QUERY_SCHEMA for prompt template: {self.prompt_template}")
@@ -238,9 +269,11 @@ class QueryGenerator(QueryMapper):
             "chunk_id": fields["chunk_id"],
             "query": parsed["query"],
             **fields,
-        }
+            }
             if "target_context_chunk_id" in parsed:
                 obj["target_context_chunk_id"] = parsed["target_context_chunk_id"]
+            if "utilized_context_chunk_ids" in parsed:
+                obj["utilized_context_chunk_ids"] = parsed["utilized_context_chunk_ids"]
             return obj
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON response: {raw}. Error: {e}")
@@ -251,6 +284,8 @@ class QueryGenerator(QueryMapper):
             }
             if "target_context_chunk_id" in self.response_format["json_schema"]["schema"]["properties"]:
                 obj["target_context_chunk_id"] = "<PARSING_FAILURE>"
+            if "utilized_context_chunk_ids" in self.response_format["json_schema"]["schema"]["properties"]:
+                obj["utilized_context_chunk_ids"] = "<PARSING_FAILURE>"
             return obj
 
     async def generate(self, chain_context: bool = True):
@@ -362,6 +397,49 @@ ASSURANCE_SCHEMA_R4 = {
     }
 }
 
+ASSURANCE_SCHEMA_R9 = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "assurance_result",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "criterion_1": {"type": "string"},
+                "criterion_2": {"type": "string"},
+                "criterion_3": {"type": "string"},
+                "criterion_4": {"type": "string"},
+                "criterion_5": {"type": "string"},
+                "answer_to_query": {"type": "string"},
+                "verdict": {"type": "string", "enum": ["Yes", "No"]}
+            },
+            "required": ["criterion_1","criterion_2","criterion_3","criterion_4","criterion_5","answer_to_query","verdict"],
+            "additionalProperties": False
+        }
+    }
+}
+
+ASSURANCE_SCHEMA_R10 = { # same as r4
+    "type": "json_schema",
+    "json_schema": {
+        "name": "assurance_result_r10",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "criterion_1": {"type": "string"},
+                "criterion_2": {"type": "string"},
+                "criterion_3": {"type": "string"},
+                "criterion_4": {"type": "string"},
+                "answer_to_query": {"type": "string"},
+                "verdict": {"type": "string", "enum": ["Yes", "No"]}
+            },
+            "required": ["criterion_1","criterion_2","criterion_3","criterion_4","answer_to_query","verdict"],
+            "additionalProperties": False
+        }
+    }
+}
+
 
 class QueryAssurance(QueryMapper):
     """Goes through the generated queries and performs a check on them. Requires DataFormatter to have loaded queries."""
@@ -380,7 +458,13 @@ class QueryAssurance(QueryMapper):
         if "r4" in self.prompt_template:
             self.response_format = ASSURANCE_SCHEMA_R4
         elif "r8" in self.prompt_template:
-            self.response_format = ASSURANCE_SCHEMA_R8
+            self.response_format = ASSURANCE_SCHEMA_R9
+        elif "r9" in self.prompt_template:
+            # For R9, we can reuse the same schema as R8 since the criteria are the same, just with an additional field for utilized context chunk ids. The prompt should be designed to include that in the response.
+            self.response_format = ASSURANCE_SCHEMA_R9
+        elif "r10" in self.prompt_template:
+            # For R10, we can also reuse the same schema as R8, but we should ensure the prompt includes the context chunk ids in the response for better interpretability.
+            self.response_format = ASSURANCE_SCHEMA_R10
         else:
             logger.error(f"No corresponding ASSURANCE_SCHEMA for prompt template: {self.prompt_template}")
             raise ValueError(f"No corresponding ASSURANCE_SCHEMA for prompt template: {self.prompt_template}")
@@ -423,21 +507,23 @@ class QueryAssurance(QueryMapper):
             chunk = row['chunk']
             context_chunks = row['context_chunks']
             impl_context_chunks = row.get('impl_context_chunks', "")
+            utilized_context_chunk_ids = row.get('utilized_context_chunk_ids', "")
             query = row['query']
             if chunk_id not in existing_ids:
-                pairs_with_id.append((chunk_id, query, chunk, context_chunks, impl_context_chunks))
+                pairs_with_id.append((chunk_id, query, chunk, context_chunks, impl_context_chunks, utilized_context_chunk_ids))
 
         total = len(pairs_with_id)
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
 
         tasks = []
-        for chunk_id, query, chunk, context_chunks, impl_context_chunks in tqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
+        for chunk_id, query, chunk, context_chunks, impl_context_chunks, utilized_context_chunk_ids in tqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
             fields = {
                 "chunk_id": chunk_id,
                 "query": query,
                 "chunk": chunk,
                 "context_chunks": context_chunks,
-                "impl_context_chunks": impl_context_chunks
+                "impl_context_chunks": impl_context_chunks,
+                "context_chunk_ids": utilized_context_chunk_ids,
             }
             tasks.append(self.get_result(fields))
 
