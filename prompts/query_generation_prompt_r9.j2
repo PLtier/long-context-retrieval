@@ -1,0 +1,194 @@
+Your task is to generate a query for a retrieval dataset focused on contextual dependencies, i.e., cases where the target chunk to be selected as positive, understanding of the context is required.
+
+You are given a **target chunk** from a legal text and the **context chunks** it references. You may also be given **Target Implicit Context Chunks**.
+
+**Definitions:**
+- **Citation, explicit reference** - pinpoint citation
+- **Target chunk**: A chunk that contains at least one pinpoint citation to other chunk(s) within the same document.
+- **Context chunks**: The chunks explicitly referenced by the target chunk. They also contain their own implicit context chunks, at the bottom, which may be helpful to understand the context chunks.
+- **Target Implicit Context Chunks**: chunks adjacent to the target chunk (i.e., the immediately preceding and maybe also following chunks in the document, coming from the same legal paragraph), if they exist. They may or may not be explicitly referenced by the target chunk. 
+- **targets the target chunk** - it means it asks about a statement i.e. a new piece of information that is established in the target chunk. It does not mean simply referencing the target chunk.
+
+---
+
+**Your task**: Generate exactly one realistic, natural-language retrieval query satisfying ALL of the following conditions:
+
+Key conditions:
+1. **Targets the target chunk** — The answer to the query is a piece of information established in the target chunk, that is dependent on some context chunks.  
+    - The query should not target any statement that is made in the context chunks or neighboring chunks.  
+
+2. **However, the retriever requires context chunks** - for the target chunk to be selected as positive, at least one of the context chunks is required. The target chunk will *not* be retrieved based on its own content alone.
+    - This means that the query should contain information that is only found in the context chunks, and that is required to understand the target chunk.
+
+Clarifications:
+3. **Query does not need to be dependent on all context chunks** - it is fine to use at least one context chunk (and obviously a target chunk), but it is not necessary to use all of them. 
+
+4. **The query must not contain explicit references to the context chunks** - the point is that if you are crafting a query, that contains the relationship between the target chunk and context chunks, refer to the substance of the context chunk, not simply place its identifier like "Article 5 paragraph 2 point 3 letter a". This totally misses the point.
+
+5. **No multiple questions hidden in the query**: create a query poiting to a SINGLE statement made in the target chunk.
+
+6. **Use of the Target Implicit Context Chunks**: They might be helpful to understand the target chunk.
+
+7. **Avoid unnecessary lexical overlap**: The query should not simply repeat the same words as the target chunk, but rather use different wording to express the same meaning. This is to ensure that the retriever is not just matching keywords, but actually understanding the content. However, ensure that the words that are crucial, especially domain-specific terms, are not changed to the point of losing the interpretability and the clear connection between the query and the target chunk.
+
+8. **Multiple statement in the target chunk** - If the target chunk contains multiple statements, the query should be about only one such statement, which is dependent on some context chunks.
+
+9. **Pinpoint citations may be abbreviated**: A target chunk may cite a context chunk in full (e.g., "art. 45 ust. 2 pkt 1 ustawy") or in abbreviated form when the context is nearby (e.g., "ust. 2 pkt 1", or even just "pkt 1"). Context chunks are themselves prefixed with their own (sometimes shorter) identifier. All context chunks provided have been explicitly referenced by the target chunk — your job is to match each citation to the right chunk, not to judge whether the reference exists.
+
+--- 
+
+**Examples**:
+
+1. In Danish:
+
+Target chunk: § 10. Stk. 2. For ansatte omfattet af § 2, nr. 3, finder stk. 1, nr. 2, ikke anvendelse.
+
+Context chunks: § 2. Ydelser efter denne bekendtgørelse tilkommer ansatte, der er udsendt til tjeneste uden for landet:
+3) for at sikre driften af en offentlig institution i dens tjenesteområde.
+§ 10. Stk. 1. Særtillægget udgør:
+4) 300 kr. pr. døgn under tjeneste i områder med særlige belastninger.
+No neighboring chunks.
+
+Good query: Får ansatte, der er udsendt til tjeneste uden for landet for at sikre driften af en offentlig institution i dens tjenesteområde, særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
+Bad query: Hvilke ansatte får ikke særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
+
+
+2. In Polish:
+Target chunk: 2. Do żołnierzy, o których mowa w § 2 pkt 2 lit. e, nie stosuje się ust. 1 pkt 2.
+Context chunks: § 2. Należności pieniężne określone przepisami niniejszego rozporządzenia przyznaje się żołnierzom zawodowym: \n 2) skierowanym do pełnienia zawodowej służby wojskowej poza granicami państwa: \n e) w celu zabezpieczenia funkcjonowania jednostki wojskowej użytej zgodnie z przepisami ustawy z dnia 17 grudnia 1998 r. o zasadach użycia lub pobytu Sił Zbrojnych Rzeczypospolitej Polskiej poza granicami państwa, w rejonie jej działania albo zapewnienia organizacji, funkcjonowania i sprawowania działalności kontrolnej tej jednostki wojskowej w rejonie jej działania. \n § 10. 1. Stawka dodatku wojennego, o którym mowa w art. 468 ust. 5 ustawy, wynosi: \n 2) od 0,03 do 0,05 najniższego uposażenia - za każdy dzień wykonywania zadań w strefie działań wojennych w warunkach związanych z bezpośrednim udziałem w akcjach o charakterze bojowym, akcjach zapobiegania aktom terroryzmu lub ich skutkom albo pełnieniem służby patrolowej, ochronnej lub z udziałem w konwojach.
+No neighboring chunks.
+
+Good query: Czy żołnierze zawodowi, którzy są skierowani do pełnienia służby wojskowej poza granicami państwa w celu zabezpieczenia funkcjonowania jednostki wojskowej, otrzymują dodatek wojenny za każdy dzień wykonywania zadań?
+Bad query: Jacy żołnierze nie otrzymują dodatku wojennego za każdy dzień wykonywania zadań?
+
+
+In both cases, the good query targets a statement in the target chunk, which is dependent on the context chunks. The bad query, on the other hand, does not target any statement in the target chunk.
+Good queries also contain much of the content from the context chunks, so that a simple lexical retriever would get confused.
+
+---
+
+**Tactic**:
+
+Read the target chunk and list the statements it makes. Identify which statements depend on context chunks via pinpoint citations. If several qualify, pick one — the query will target only that statement. Read neighboring chunks if needed to disambiguate the target chunk.
+Resolve the citations. For each pinpoint citation in your chosen statement, match it to the corresponding context chunk. Citations may be abbreviated (e.g., "ust. 2 pkt 1" referring back to an article established earlier), and context chunks carry their own identifier prefix that may be shorter still — align them by working from the most specific component outward. Once matched, mentally substitute the citation with the substantive content of the context chunk. Use the context chunks' own neighboring chunks (provided beneath them, with internal IDs to help you map them) only to interpret the context — never as a target.
+Draft the query so that:
+
+* it asks about the chosen statement in the target chunk,
+* it carries enough substance from the context chunk(s) that retrieval cannot succeed on the target chunk alone,
+* it does not name or cite the context chunks by identifier,
+* it phrases things differently from the target chunk's wording where possible, while keeping domain-specific terms intact,
+* it asks a single question, ideally opening with Do/Does/Is/Are/Under which conditions/When (avoid Who/What/Which, which tend to ask for entities defined in the context chunks rather than rules established in the target chunk).
+
+---
+
+**Output:**
+
+Return ONLY a valid JSON object with exactly two keys. Do not include markdown formatting outside the JSON, no explanation, no preamble, and no quotation marks.
+
+{
+  "utilized_context_chunk_ids": ["ID_1", "ID_2"],
+  "query": "a single question in the same language as the input legal text"
+}
+
+---
+
+**Input:**
+- **Target chunk**: <target_chunk> {{chunk}} </target_chunk>
+- **Target Implicit Context Chunks**: <target_implicit_context_chunks> {{impl_context_chunks}} </target_implicit_context_chunks>
+- **Context chunks**: <context_chunks> {{context_chunks}} </context_chunks>
+
+--- Rehearsal of the instructions
+
+Your task is to generate a query for a retrieval dataset focused on contextual dependencies, i.e., cases where the target chunk to be selected as positive, understanding of the context is required.
+
+You are given a **target chunk** from a legal text and the **context chunks** it references. You may also be given **Target Implicit Context Chunks**.
+
+**Definitions:**
+- **Citation, explicit reference** - pinpoint citation
+- **Target chunk**: A chunk that contains at least one pinpoint citation to other chunk(s) within the same document.
+- **Context chunks**: The chunks explicitly referenced by the target chunk. They also contain their own implicit context chunks, at the bottom, which may be helpful to understand the context chunks.
+- **Target Implicit Context Chunks**: chunks adjacent to the target chunk (i.e., the immediately preceding and maybe also following chunks in the document, coming from the same legal paragraph), if they exist. They may or may not be explicitly referenced by the target chunk. 
+- **targets the target chunk** - it means it asks about a statement i.e. a new piece of information that is established in the target chunk. It does not mean simply referencing the target chunk.
+
+---
+
+**Your task**: Generate exactly one realistic, natural-language retrieval query satisfying ALL of the following conditions:
+
+Key conditions:
+1. **Targets the target chunk** — The answer to the query is a piece of information established in the target chunk, that is dependent on some context chunks.  
+    - The query should not target any statement that is made in the context chunks or neighboring chunks.  
+
+2. **However, the retriever requires context chunks** - for the target chunk to be selected as positive, at least one of the context chunks is required. The target chunk will *not* be retrieved based on its own content alone.
+    - This means that the query should contain information that is only found in the context chunks, and that is required to understand the target chunk.
+
+Clarifications:
+3. **Query does not need to be dependent on all context chunks** - it is fine to use at least one context chunk (and obviously a target chunk), but it is not necessary to use all of them. 
+
+4. **The query must not contain explicit references to the context chunks** - the point is that if you are crafting a query, that contains the relationship between the target chunk and context chunks, refer to the substance of the context chunk, not simply place its identifier like "Article 5 paragraph 2 point 3 letter a". This totally misses the point.
+
+5. **No multiple questions hidden in the query**: create a query poiting to a SINGLE statement made in the target chunk.
+
+6. **Use of the Target Implicit Context Chunks**: They might be helpful to understand the target chunk.
+
+7. **Avoid unnecessary lexical overlap**: The query should not simply repeat the same words as the target chunk, but rather use different wording to express the same meaning. This is to ensure that the retriever is not just matching keywords, but actually understanding the content. However, ensure that the words that are crucial, especially domain-specific terms, are not changed to the point of losing the interpretability and the clear connection between the query and the target chunk.
+
+8. **Multiple statement in the target chunk** - If the target chunk contains multiple statements, the query should be about only one such statement, which is dependent on some context chunks.
+
+9. **Pinpoint citations may be abbreviated**: A target chunk may cite a context chunk in full (e.g., "art. 45 ust. 2 pkt 1 ustawy") or in abbreviated form when the context is nearby (e.g., "ust. 2 pkt 1", or even just "pkt 1"). Context chunks are themselves prefixed with their own (sometimes shorter) identifier. All context chunks provided have been explicitly referenced by the target chunk — your job is to match each citation to the right chunk, not to judge whether the reference exists.
+
+--- 
+
+**Examples**:
+
+1. In Danish:
+
+Target chunk: § 10. Stk. 2. For ansatte omfattet af § 2, nr. 3, finder stk. 1, nr. 2, ikke anvendelse.
+
+Context chunks: § 2. Ydelser efter denne bekendtgørelse tilkommer ansatte, der er udsendt til tjeneste uden for landet:
+3) for at sikre driften af en offentlig institution i dens tjenesteområde.
+§ 10. Stk. 1. Særtillægget udgør:
+4) 300 kr. pr. døgn under tjeneste i områder med særlige belastninger.
+No target implicit context chunks.
+
+Good query: Får ansatte, der er udsendt til tjeneste uden for landet for at sikre driften af en offentlig institution i dens tjenesteområde, særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
+Bad query: Hvilke ansatte får ikke særtillægget på 300 kr. pr. døgn under tjeneste i områder med særlige belastninger?
+
+
+2. In Polish:
+Target chunk: 2. Do żołnierzy, o których mowa w § 2 pkt 2 lit. e, nie stosuje się ust. 1 pkt 2.
+Context chunks: § 2. Należności pieniężne określone przepisami niniejszego rozporządzenia przyznaje się żołnierzom zawodowym: \n 2) skierowanym do pełnienia zawodowej służby wojskowej poza granicami państwa: \n e) w celu zabezpieczenia funkcjonowania jednostki wojskowej użytej zgodnie z przepisami ustawy z dnia 17 grudnia 1998 r. o zasadach użycia lub pobytu Sił Zbrojnych Rzeczypospolitej Polskiej poza granicami państwa, w rejonie jej działania albo zapewnienia organizacji, funkcjonowania i sprawowania działalności kontrolnej tej jednostki wojskowej w rejonie jej działania. \n § 10. 1. Stawka dodatku wojennego, o którym mowa w art. 468 ust. 5 ustawy, wynosi: \n 2) od 0,03 do 0,05 najniższego uposażenia - za każdy dzień wykonywania zadań w strefie działań wojennych w warunkach związanych z bezpośrednim udziałem w akcjach o charakterze bojowym, akcjach zapobiegania aktom terroryzmu lub ich skutkom albo pełnieniem służby patrolowej, ochronnej lub z udziałem w konwojach.
+No target implicit context chunks.
+
+Good query: Czy żołnierze zawodowi, którzy są skierowani do pełnienia służby wojskowej poza granicami państwa w celu zabezpieczenia funkcjonowania jednostki wojskowej, otrzymują dodatek wojenny za każdy dzień wykonywania zadań?
+Bad query: Jacy żołnierze nie otrzymują dodatku wojennego za każdy dzień wykonywania zadań?
+
+
+In both cases, the good query targets a statement in the target chunk, which is dependent on the context chunks. The bad query, on the other hand, does not target any statement in the target chunk.
+Good queries also contain much of the content from the context chunks, so that a simple lexical retriever would get confused.
+
+---
+
+**Tactic**:
+
+Read the target chunk and list the statements it makes. Identify which statements depend on context chunks via pinpoint citations. If several qualify, pick one — the query will target only that statement. Read neighboring chunks if needed to disambiguate the target chunk.
+Resolve the citations. For each pinpoint citation in your chosen statement, match it to the corresponding context chunk. Citations may be abbreviated (e.g., "ust. 2 pkt 1" referring back to an article established earlier), and context chunks carry their own identifier prefix that may be shorter still — align them by working from the most specific component outward. Once matched, mentally substitute the citation with the substantive content of the context chunk. Use the context chunks' own neighboring chunks (provided beneath them, with internal IDs to help you map them) only to interpret the context — never as a target.
+Draft the query so that:
+
+* it asks about the chosen statement in the target chunk,
+* it carries enough substance from the context chunk(s) that retrieval cannot succeed on the target chunk alone,
+* it does not name or cite the context chunks by identifier,
+* it phrases things differently from the target chunk's wording where possible, while keeping domain-specific terms intact,
+* it asks a single question, ideally opening with Do/Does/Is/Are/Under which conditions/When (avoid Who/What/Which, which tend to ask for entities defined in the context chunks rather than rules established in the target chunk).
+
+---
+
+**Output:**
+
+Return ONLY a valid JSON object with exactly two keys. Do not include markdown formatting outside the JSON, no explanation, no preamble, and no quotation marks.
+
+{
+  "utilized_context_chunk_ids": ["ID_1", "ID_2"],
+  "query": "a single question in the same language as the input legal text"
+}
+
+---
