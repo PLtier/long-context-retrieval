@@ -3,12 +3,13 @@
 
 # Contextualise merged/chunks.jsonl into merged/contextualised_chunks.jsonl using anthropic_contextualise_dataset.py
 
-CHUNKS_PATH="./data/raw/danish_dataset_7/cluster_A/barnets_lov/chunks.jsonl"
-SAVE_DIR="./data/processed/danish_dataset_7_no_chain/cluster_A/barnets_lov"
-CONTEXTUALISATION_MODEL="openai/gpt-oss-120B"  # or leave blank for default
+CHUNKS_PATH="$1"
+SAVE_DIR="$2"
+CONTEXTUALISATION_MODEL="Qwen/Qwen3-235B-A22B-Instruct-2507-FP8"
 python3 lcr/cli/anthropic_contextualise_dataset.py \
     --contextualisation-model "$CONTEXTUALISATION_MODEL" \
     --chunks-path "$CHUNKS_PATH" \
     --save-dir "$SAVE_DIR" \
-    --provider "openrouter" \
-    --no-start-from-checkpoint
+    --provider "vllm" \
+    --max-concurrent $MAX_CONCURRENT \
+    --start-from-checkpoint

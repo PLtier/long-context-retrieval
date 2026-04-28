@@ -23,7 +23,7 @@ if [ -d "$DATASET_DIR" ] && [ -f "$DATASET_DIR/queries.jsonl" ]; then
         --datasets chunks \
         --save-path "$OUTPUT_DIR" \
         --start-from-checkpoint \
-        --llm "qwen/qwen3.6-plus" \
+        --llm "openai/gpt-oss-120b" \
         --provider "openrouter" \
         --impl-context-col "implicit_context_chunks" \
         --context-col "explicit_context_chunks" \

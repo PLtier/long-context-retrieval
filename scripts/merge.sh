@@ -22,7 +22,7 @@ mkdir -p "$MERGED_DIR"
 # done
 
 # run visualisation on merged queries
-python lcr/visualisation/visualise_jsonl.py "$MERGED_DIR/queries.jsonl" --preset queries
+# python lcr/visualisation/visualise_jsonl.py "$MERGED_DIR/queries.jsonl" --preset queries
 
 # Merge chunks.jsonl
 echo "Merging chunks.jsonl files..."
@@ -51,6 +51,6 @@ done
 # done
 
 # visualise
-python lcr/visualisation/visualise_jsonl.py "$MERGED_DIR/assurance_results.jsonl" --preset assurance_results
+# python lcr/visualisation/visualise_jsonl.py "$MERGED_DIR/assurance_results.jsonl" --preset assurance_results
 
 echo "Merge complete. Output in $MERGED_DIR."
