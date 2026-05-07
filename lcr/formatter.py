@@ -194,6 +194,9 @@ class DataFormatter():
             # print("Context chunks:", context)
             # print("Chunk with context:", f"{self.doc_prompt}{chunk} {context}")
             if context: # double check if context is present.
+                # CHECK: chunk_text + context + impl_context - at most 20000 words should be below 32k tokens if prompt included.
+                if len(chunk_text.split()) + len(context.split()) + len(impl_context.split()) > 20000:
+                    continue
                 yield chunk_id, chunk_text, context, impl_context
 
 
