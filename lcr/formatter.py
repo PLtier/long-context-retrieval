@@ -38,8 +38,9 @@ class DataFormatter():
             print("Loaded documents dataset from hf", path, "split:", split, "name:", name)
         self.doc_dataset = self.doc_dataset.map(self.parse_id)
     
-    def load_from_jsonl(self, path: str, query_or_dataset: str) -> None:
+    def load_from_jsonl(self, path: str | Path, query_or_dataset: Literal["queries", "documents"]) -> None:
         """Loads a query or document dataset from a jsonl file."""
+        path = str(path)
         if query_or_dataset == "queries":
             self.queries_dataset = load_dataset("json", data_files=path, split="train")
             print("Loaded queries dataset from jsonl", path)
