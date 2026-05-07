@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
+import time
 
 from datasets import Dataset, load_from_disk
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -327,6 +328,7 @@ class QueryGenerator(QueryMapper):
         total = len(pairs_with_id)
         logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
 
+        start_time = time.time()
         tasks = []
         # i = 0
         for chunk_id, chunk, context_chunks, impl_context_chunks in tqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
@@ -355,7 +357,8 @@ class QueryGenerator(QueryMapper):
                 self._save()
         # # Final save
         self._save()
-        logger.info("Done generating queries.")
+        end_time = time.time()
+        logger.info(f"Done generating queries in {end_time - start_time:.2f} seconds.")
 
 ASSURANCE_SCHEMA_R8 = {
     "type": "json_schema",
