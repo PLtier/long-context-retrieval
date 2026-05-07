@@ -58,6 +58,11 @@ class QueryMapper:
                 api_key=os.getenv("TOGETHER_API_KEY"),
                 base_url="https://api.together.xyz/v1",
             )
+        elif provider == "vllm":
+            self._client = AsyncOpenAI(
+                api_key="EMPTY",
+                base_url=os.getenv("VLLM_BASE_URL", "http://localhost:8000/v1"),
+            )
         else:
             raise ValueError(f"Unsupported provider: {provider}")
         self.queries = []
