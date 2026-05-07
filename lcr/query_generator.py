@@ -453,6 +453,7 @@ class QueryAssurance(QueryMapper):
         super().__init__(query_formatter, llm_name, provider, save_path, start_from_checkpoint, save_jsonl)
         self.max_tokens = 200
         self.jsonl_filename = "assurance_results"
+        self.reasoning_effort = "high"
         self.prompt_template = prompt_template
         # Setup Jinja2 environment
         self.jinja_env = Environment(
