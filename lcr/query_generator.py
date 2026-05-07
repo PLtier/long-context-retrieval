@@ -291,7 +291,7 @@ class QueryGenerator(QueryMapper):
             if "target_context_chunk_id" in self.response_format["json_schema"]["schema"]["properties"]:
                 obj["target_context_chunk_id"] = "<PARSING_FAILURE>"
             if "utilized_context_chunk_ids" in self.response_format["json_schema"]["schema"]["properties"]:
-                obj["utilized_context_chunk_ids"] = "<PARSING_FAILURE>"
+                obj["utilized_context_chunk_ids"] = []  # keep list type; string would break pyarrow schema inference
             return obj
 
     async def generate(self, chain_context: bool = True):
