@@ -125,9 +125,8 @@ class QueryMapper:
         logger.error("[Failure] Marking query as <QUERY_GENERATION_FAILURE>.")
         return "<QUERY_GENERATION_FAILURE>"
 
-    def _load_existing(self, path: Path | None = None):
-        """Load existing queries from HuggingFace dataset if checkpointing."""
-        jsonl_path = (path or self.save_path) / "queries.jsonl"
+    def _load_existing(self, jsonl_path: Path) -> list[dict]:
+        """Load existing queries from jsonl dataset if checkpointing."""
         if jsonl_path.exists():
             try:
                 with open(jsonl_path, "r", encoding="utf-8") as f:
