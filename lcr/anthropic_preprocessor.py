@@ -40,7 +40,7 @@ class AnthropicContextualPreprocessor:
         data_formatter: DataFormatter,
         contextualisation_model: str,
         provider: str = "openrouter",
-        max_concurrent: int = 50, #TODO: REMOVE IN PRODUCTION
+        max_concurrent: int = 64, #TODO: REMOVE IN PRODUCTION
         start_from_checkpoint: bool = False,
         save_dir: str = "temp_augmented_docs",
     ):
