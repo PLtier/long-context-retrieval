@@ -28,7 +28,7 @@ class QueryMapper:
         self.save_jsonl: bool = save_jsonl
         self.context_col: str = context_col
         self.impl_context_col: str = impl_context_col
-        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(50)
+        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(64)
         self.response_format = {
             "type": "json_schema",
             "json_schema": {
