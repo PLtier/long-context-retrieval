@@ -141,16 +141,17 @@ class Embedder:
     def compute_results(
         self, data_formatter: DataFormatter, **kwargs
     ) -> tuple[dict[str, dict[str, float]], list[str], dict[str, float]]:
-        queries_embeddings, label_ids = self.process_queries(data_formatter)
-        queries_embeddings = self._convert_to_tensor(queries_embeddings)
-
-        # time the embedding of documents
         import time
 
-        start = time.time()
+        t0 = time.time()
+        queries_embeddings, label_ids = self.process_queries(data_formatter)
+        queries_embeddings = self._convert_to_tensor(queries_embeddings)
+        query_embedding_time = time.time() - t0
+
+        t0 = time.time()
         documents_embeddings, all_doc_ids = self.process_documents(data_formatter)
         documents_embeddings = self._convert_to_tensor(documents_embeddings)
-        runtime = time.time() - start
+        doc_embedding_time = time.time() - t0
 
         if kwargs.get("mean_over_docs", False):
             # average doc embeddings between themselves if they have the same all_doc_ids prefix
@@ -166,11 +167,15 @@ class Embedder:
             all_doc_ids = new_all_doc_ids
             label_ids = [doc_id.split("_")[0] for doc_id in label_ids]
 
+        t0 = time.time()
         scores = self.get_similarities(queries_embeddings, documents_embeddings)
-        # cast scores to numpy
         scores = scores.numpy()
+        similarity_time = time.time() - t0
+
         results = self.get_results(scores, all_doc_ids)
         metrics = self.get_metrics(scores, all_doc_ids, label_ids, **kwargs)
-        metrics["runtime"] = runtime
+        metrics["query_embedding_time"] = query_embedding_time
+        metrics["doc_embedding_time"] = doc_embedding_time
+        metrics["similarity_time"] = similarity_time
 
         return results, label_ids, metrics

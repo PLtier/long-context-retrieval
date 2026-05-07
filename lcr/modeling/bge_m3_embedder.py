@@ -44,18 +44,24 @@ class BGEM3Embedder(Embedder):
         # Sparse path: embeddings are list[dict[token, weight]].
         # _convert_to_tensor and torch.mm don't apply; compute pairwise
         # lexical matching scores via the model's built-in function.
+        t0 = time.time()
         query_embeddings, label_ids = self.process_queries(data_formatter)
+        query_embedding_time = time.time() - t0
 
-        start = time.time()
+        t0 = time.time()
         doc_embeddings, all_doc_ids = self.process_documents(data_formatter)
-        runtime = time.time() - start
+        doc_embedding_time = time.time() - t0
 
+        t0 = time.time()
         scores = np.array([
             [self.model.compute_lexical_matching_score(q, d) for d in doc_embeddings]
             for q in query_embeddings
         ])
+        similarity_time = time.time() - t0
 
         results = self.get_results(scores, all_doc_ids)
         metrics = self.get_metrics(scores, all_doc_ids, label_ids, **kwargs)
-        metrics["runtime"] = runtime
+        metrics["query_embedding_time"] = query_embedding_time
+        metrics["doc_embedding_time"] = doc_embedding_time
+        metrics["similarity_time"] = similarity_time
         return results, label_ids, metrics
