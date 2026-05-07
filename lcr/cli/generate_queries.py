@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 
+from loguru import logger
 import typer
 
 from lcr.config import PROCESSED_DATA_DIR
@@ -13,17 +14,19 @@ app = typer.Typer()
 async def _generate_queries(
     documents_base_dir: Path,
     datasets: list[str],
-    save_path: str = "./generated_queries",
-    llm: str = "qwen/qwen-2.5-7b-instruct",
-    provider: str = "openrouter",
+    save_path: str = "",
+    llm: str = "",
+    provider: str = "",
     start_from_checkpoint: bool = True,
     save_jsonl: bool = True,
     chain_context: bool = False,
     impl_context_col: str = "implicit_context_chunks_ids",
     context_col: str = "context_chunks_ids",
     update_queries: bool = False,
-    prompt_template: str = None,
+    prompt_template: str = "",
 ):
+    if (not (documents_base_dir and save_path and llm and provider and prompt_template)):
+        logger.info("Missing crucial argument for query generation. Please provide all required arguments.")
     for dataset in datasets:
         path = DATASETS[dataset].get("path", dataset)
         print(path)
@@ -41,7 +44,7 @@ async def _generate_queries(
             impl_context_col=impl_context_col,
             context_col=context_col,
             update_queries=update_queries,
-            prompt_template=prompt_template or "query_prompt_r4.j2",
+            prompt_template=prompt_template,
             input_queries_dir=str(documents_base_dir),
         )
         await queries_generator.generate(chain_context=chain_context)
@@ -52,17 +55,17 @@ def generate_queries(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     documents_base_dir: Path = PROCESSED_DATA_DIR,
     datasets: list[str] = [],
-    save_path: str = "./generated_queries",
-    llm: str = "qwen/qwen-2.5-7b-instruct",
+    save_path: str = "",
+    llm: str = "",
     start_from_checkpoint: bool = True,
     save_jsonl: bool = True,
-    provider: str = "openrouter",
+    provider: str = "",
     chain_context: bool = False,
     impl_context_col: str = "implicit_context_chunks_ids",
     context_col: str = "context_chunks_ids",
     update_queries: bool = False,
     
-    prompt_template: str = "query_prompt_r4.j2",
+    prompt_template: str = "",
     # -----------------------------------------
 ):
     asyncio.run(_generate_queries(documents_base_dir, datasets, save_path, llm, provider, start_from_checkpoint, save_jsonl, chain_context, impl_context_col, context_col, update_queries, prompt_template))
@@ -72,15 +75,17 @@ def assure_queries(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     queries_base_dir: Path = PROCESSED_DATA_DIR,
     datasets: list[str] = [],
-    save_path: str = "./assurance_results",
-    llm: str = "qwen/qwen-2.5-7b-instruct",
+    save_path: str = "",
+    llm: str = "",
     start_from_checkpoint: bool = True,
     save_jsonl: bool = True,
-    provider: str = "openrouter",
+    provider: str = "",
     
-    prompt_template: str = "assurance_prompt_r4.j2",
+    prompt_template: str = "",
     # -----------------------------------------
 ):
+    if (not (queries_base_dir and save_path and llm and provider and prompt_template)):
+        logger.info("Missing crucial argument for query assurance. Please provide all required arguments.")
     for dataset in datasets:
         ds_formatter = DataFormatter()
         ds_formatter.load_from_jsonl(f"{queries_base_dir}/{dataset}.jsonl", query_or_dataset="queries")
