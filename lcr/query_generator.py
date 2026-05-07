@@ -299,8 +299,8 @@ class QueryGenerator(QueryMapper):
         existing = []
         existing_ids = set()
         if self.start_from_checkpoint:
-            load_path = self.input_queries_dir if self.update_queries and self.input_queries_dir else None
-            existing = self._load_existing(path=load_path)
+            load_path = self.input_queries_dir if self.update_queries and self.input_queries_dir else self.save_path
+            existing = self._load_existing(load_path / f"{self.jsonl_filename}.jsonl")
             # print(existing[:2])
             existing_ids = set(chunk["chunk_id"] for chunk in existing) # they are already unique
             # print(existing_ids)
@@ -502,8 +502,9 @@ class QueryAssurance(QueryMapper):
         # Load checkpoint if needed
         existing_ids = set()
         if self.start_from_checkpoint:
-            existing = self._load_existing()
-            existing_ids = existing['chunk_id']  # they are already unique
+            existing = self._load_existing(self.save_path / f"{self.jsonl_filename}.jsonl")
+            # print(existing[:2])
+            existing_ids = set(query['chunk_id'] for query in existing)  # they are already unique
             self.queries = list(existing)
         else:
             self.queries = []
