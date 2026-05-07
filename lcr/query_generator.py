@@ -85,14 +85,15 @@ class QueryMapper:
                         # max_tokens=self.max_tokens,
                         # temperature=0.0,
                         # extra_body={"reasoning": {"enabled": False}},
-                        # reasoning_effort = "high",
+                        reasoning_effort=self.reasoning_effort,
                         # response_format={"type": "json_object"},
                         response_format=self.response_format,
                         extra_body={
                             "plugins": [{"id": "response-healing"}],
-                            "reasoning": {"effort": "high", "exclude": True},
+                            "reasoning": {"effort": self.reasoning_effort, "exclude": True},
                             "provider": {"require_parameters": True},
                         },
+                        # reasoning = {"effort": "high"}
                     )
                 choices = getattr(response, "choices", None)
                 if not choices or not hasattr(choices[0], "message"):
