@@ -6,6 +6,7 @@ import typer
 
 from lcr.formatter import DataFormatter
 from lcr.modeling.bge_m3_embedder import BGEM3Embedder
+from lcr.modeling.bm25_embedder import BM25Embedder
 from lcr.modeling.sentence_transformer_embedder import SentenceTransformerEmbedder
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -18,39 +19,38 @@ def eval(
     model_path: str = "",
     chunks_path: str = "", # if the docs path is different from the queries path
     queries_path: str = "",
-    save_results_dir: str = "",
+    results_jsonl_path: str = "",
     use_prefix: bool = False,
-    encoder: str = "sentence",  # "sentence" | "flag"
+    encoder: str = "sentence",  # "sentence" | "flag" | "bm25"
     encoding_type: str = "dense",  # "dense" | "sparse", only applicable if encoder is "flag"
+    spacy_model: str = "",  # required when encoder is "bm25" (e.g. "da_core_news_sm")
 ):
-    if model_path == "" or queries_path == "" or save_results_dir == "" or chunks_path == "":
-        print("Please provide all required arguments: --model-path, --queries-path, --chunks-path, and --save-results-dir")
+    if queries_path == "" or results_jsonl_path == "" or chunks_path == "":
+        print("Please provide all required arguments: --queries-path, --chunks-path, and --results-jsonl-path")
+        return
+    if encoder == "bm25":
+        if spacy_model == "":
+            print("--spacy-model is required when --encoder bm25")
+            return
+    elif model_path == "":
+        print("--model-path is required when --encoder is sentence or flag")
         return
 
-    model_name = model_path.split("/")[-1]
     if encoder == "flag":
         embedder = BGEM3Embedder(model_name=model_path, batch_size=128, device=DEVICE, encoding_type=encoding_type)
+    elif encoder == "bm25":
+        embedder = BM25Embedder(spacy_model=spacy_model)
     else:
         embedder = SentenceTransformerEmbedder(SentenceTransformer(model_path, trust_remote_code=True, device=DEVICE), batch_size=128, device=DEVICE, add_prefix=use_prefix)
-
-
 
     ds_formatter = DataFormatter()
     ds_formatter.load_from_jsonl(queries_path, query_or_dataset="queries")
     ds_formatter.load_from_jsonl(chunks_path, query_or_dataset="documents")
 
-    # formatters[dataset] = ds_formatter
-
     preds, labels, metrics = embedder.compute_results(ds_formatter)
     labels = list(labels)
 
-    output_path = f"{save_results_dir}/{model_name}_results.json"
-    # with open(output_path, "w") as f:
-        # json.dump({"preds": preds, "labels": labels, "metrics": metrics}, f)
-    print(f"Saved results for {model_name} to {output_path}")
     print(metrics)
-
-
 
     top_n = 10
     # save as jsonlines file:
@@ -86,22 +86,14 @@ def eval(
                     'pred_chunk_score': round(p_chunk_score, 3),
                     'rank': rank
                 })
-            jsonl_rows.append(entry)
+        jsonl_rows.append(entry)
 
     import os
-    jsonl_filename = f"results_{model_name}.jsonl"
-    jsonl_path = f"{save_results_dir}/{jsonl_filename}"
-    os.makedirs(save_results_dir, exist_ok=True)
-    with open(jsonl_path, 'w') as jsonlfile:
+    os.makedirs(os.path.dirname(results_jsonl_path), exist_ok=True)
+    with open(results_jsonl_path, 'w') as jsonlfile:
         for row in jsonl_rows:
             jsonlfile.write(json.dumps(row, ensure_ascii=False) + '\n')
-    print(f"JSON Lines output saved to {jsonl_path}!")
-
-
-    
-
-
-
+    print(f"JSON Lines output saved to {results_jsonl_path}!")
 
 if __name__ == "__main__":
     app()
