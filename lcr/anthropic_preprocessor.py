@@ -125,11 +125,14 @@ class AnthropicContextualPreprocessor:
         for attempt in range(1, max_retries + 1):
             try:
                 async with self._semaphore:
-                    response = await self._client.chat.completions.create(
-                        model=self.contextualisation_model,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=0.0,
-                        extra_body={"reasoning": {"effort": "low"}, "provider": {"order": ["deepinfra"], "allow_fallbacks": False}, "prompt_cache_key": cache_id}
+                    response = await asyncio.wait_for(
+                        self._client.chat.completions.create(
+                            model=self.contextualisation_model,
+                            messages=[{"role": "user", "content": prompt}],
+                            temperature=0.0,
+                            extra_body={"reasoning": {"effort": "low"}, "provider": {"order": ["deepinfra"], "allow_fallbacks": False}, "prompt_cache_key": cache_id}
+                        ),
+                        timeout=600.0*3, # 30 minutes per request, it is likely a bug
                     )
 
                 usage = getattr(response, "usage", None)
@@ -159,6 +162,10 @@ class AnthropicContextualPreprocessor:
                 if not content or not content.strip():
                     raise ValueError("Empty content in response")
                 return content.strip() + "\n\n"
+
+            except asyncio.TimeoutError:
+                logger.error(f"[Timeout] cache_id={cache_id}: timed out after 10 minutes.")
+                return "<CONTEXTUALISATION_FAILURE>"
 
             except Exception as e:
                 err_str = str(e).lower()
