@@ -2,6 +2,7 @@ import time
 
 from FlagEmbedding import BGEM3FlagModel
 import numpy as np
+from seaborn.external.husl import m
 
 from lcr.modeling.base_embedder import Embedder
 
@@ -16,7 +17,7 @@ class BGEM3Embedder(Embedder):
         device: str = "cpu",
     ):
         super().__init__(is_contextual_model=False, device=device)
-        self.model = BGEM3FlagModel(model_name, use_fp16=use_fp16, device=device)
+        self.model = BGEM3FlagModel(model_name, use_fp16=use_fp16, device=device, )
         self.batch_size = batch_size
         self.encoding_type = encoding_type
 
@@ -27,6 +28,7 @@ class BGEM3Embedder(Embedder):
             return_dense=(self.encoding_type == "dense"),
             return_sparse=(self.encoding_type == "sparse"),
             return_colbert_vecs=False,
+            max_length=8192,
         )
 
     def embed_queries(self, queries):

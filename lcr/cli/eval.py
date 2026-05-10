@@ -1,4 +1,5 @@
 import json
+from typing import Literal
 
 from sentence_transformers import SentenceTransformer
 import torch
@@ -37,7 +38,7 @@ def eval(
         return
 
     if encoder == "flag":
-        embedder = BGEM3Embedder(model_name=model_path, batch_size=128, device=DEVICE, encoding_type=encoding_type)
+        embedder = BGEM3Embedder(model_name=model_path, batch_size=32, device=DEVICE, encoding_type=encoding_type)
     elif encoder == "bm25":
         embedder = BM25Embedder(spacy_model=spacy_model)
     else:
