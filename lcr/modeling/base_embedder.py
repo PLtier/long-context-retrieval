@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import torch
 
@@ -89,9 +90,12 @@ class Embedder:
         return scores.to("cpu")
     
     def get_results(self, scores, all_document_ids) -> dict[str, dict[str, float]]:
+        k_max = 100
+        doc_ids_arr = np.array(all_document_ids)
         results = {}
-        for idx, scores_per_query in enumerate(scores):
-            results[str(idx)] = {str(doc_id): score.item() for doc_id, score in zip(all_document_ids, scores_per_query)}
+        for idx, row in enumerate(scores):
+            top_idx = np.argpartition(row, -k_max)[-k_max:]
+            results[str(idx)] = {str(doc_ids_arr[i]): float(row[i]) for i in top_idx}
         return results
 
     def get_metrics(self, scores, all_document_ids, label_documents_id, **kwargs):
