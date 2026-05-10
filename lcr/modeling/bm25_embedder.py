@@ -2,6 +2,8 @@ import time
 from typing import Literal
 
 import bm25s
+import numpy as np
+import scipy.sparse as sp
 import spacy
 
 from lcr.formatter import DataFormatter
@@ -41,20 +43,35 @@ class BM25Embedder(Embedder):
         all_chunk_ids = self.build_index(data_formatter)
         doc_embedding_time = time.time() - t0
 
-        k = len(all_chunk_ids)
         t0 = time.time()
-        pred_chunks_ids, scores = self.retriever.retrieve(
-            tokenized_queries, k=k, sorted=False, return_as="tuple", show_progress=True
-        ) # no need to sort here.
+        s = self.retriever.scores
+        n_vocab = len(s["indptr"]) - 1  # vocab_dict has +1 extra empty-token entry added after indexing
+        M = sp.csc_matrix(
+            (s["data"], s["indices"], s["indptr"]),
+            shape=(s["num_docs"], n_vocab),
+        )
+        rows, cols_list = [], []
+        for qi, tokens in enumerate(tokenized_queries):
+            for t in tokens:
+                if t in self.retriever.vocab_dict:
+                    rows.append(qi)
+                    cols_list.append(self.retriever.vocab_dict[t])
+        Q = sp.csr_matrix(
+            (np.ones(len(rows), dtype="float32"), (rows, cols_list)),
+            shape=(len(tokenized_queries), n_vocab),
+        )
+        score_matrix = (Q @ M.T).toarray()  # (n_queries, n_docs)
         similarity_time = time.time() - t0
 
+        k_max = 100
+        chunk_ids_arr = np.array(all_chunk_ids)
         results = {}
         relevant_docs = {}
-        for idx, gt_chunk_id in enumerate(gt_chunk_ids):
-            results[str(idx)] = {
-                chunk_id: float(score) for chunk_id, score in zip(pred_chunks_ids[idx], scores[idx])
-            }
-            relevant_docs[str(idx)] = {gt_chunk_id: 1}
+        for qi, gt_chunk_id in enumerate(gt_chunk_ids):
+            row = score_matrix[qi]
+            top_idx = np.argpartition(row, -k_max)[-k_max:]
+            results[str(qi)] = {chunk_ids_arr[di]: float(row[di]) for di in top_idx}
+            relevant_docs[str(qi)] = {gt_chunk_id: 1}
 
         metrics: dict[str, float] = self.evaluator.compute_mteb_metrics(relevant_docs, results)
         metrics["query_embedding_time"] = query_embedding_time
