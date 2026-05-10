@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Iterate through all clusters and subfolders in datasets and run the two commands for each dataset directory
-# RAW_BASE=./data/raw/polish_dataset_7
-# PROCESSED_BASE=./data/processed/polish_dataset_7_no_chain
-
-
 RAW_BASE="$1"
 PROCESSED_BASE="$2"
 CONTEXTUALISATION_MODEL="$3"
@@ -20,7 +15,7 @@ for cluster in "$RAW_BASE"/cluster_*; do
             dataset_name=$(basename "$dataset")
             cluster_name=$(basename "$cluster")
             echo "Processing $cluster_name/$dataset_name"
-            python3 lcr/cli/anthropic_contextualise_dataset.py \
+            python3 lcr/cli/waterfall_contextualise_dataset.py \
                 --contextualisation-model "$CONTEXTUALISATION_MODEL" \
                 --chunks-path "$dataset/chunks.jsonl" \
                 --save-dir "$PROCESSED_BASE/$cluster_name/$dataset_name" \

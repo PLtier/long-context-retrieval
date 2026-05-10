@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import time
+from typing import Literal
 
 from datasets import Dataset, load_from_disk
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -29,7 +30,8 @@ class QueryMapper:
         self.save_jsonl: bool = save_jsonl
         self.context_col: str = context_col
         self.impl_context_col: str = impl_context_col
-        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(64)
+        self.max_concurrent = 64
+        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(self.max_concurrent)
         self.response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -69,6 +71,7 @@ class QueryMapper:
         self.queries = []
     max_tokens = 200
     jsonl_filename = ""
+    reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] = "medium"
 
     def _get_prompt(self, fields: dict[str, str]) -> str:
         raise NotImplementedError("Not implemented")
@@ -252,6 +255,8 @@ class QueryGenerator(QueryMapper):
             autoescape=select_autoescape()
         )
         self.template = self.jinja_env.get_template(self.prompt_template)
+        # TODO: QUICK TEST
+        # self.reasoning_effort = "high"
         # Select schema based on prompt template
         if "r4" in self.prompt_template:
             self.response_format = QUERY_SCHEMA_R4
@@ -302,7 +307,14 @@ class QueryGenerator(QueryMapper):
             load_path = self.input_queries_dir if self.update_queries and self.input_queries_dir else self.save_path
             existing = self._load_existing(load_path / f"{self.jsonl_filename}.jsonl")
             # print(existing[:2])
+            # print(existing[:2])
             existing_ids = set(chunk["chunk_id"] for chunk in existing) # they are already unique
+            # print(existing_ids)
+            # print(f"\n self.update_queries: {self.update_queries}")
+            # print(existing_ids)
+            # print(f"\n self.update_queries: {self.update_queries}")
+            # print(existing_ids)
+            # print(f"\n self.update_queries: {self.update_queries}")
             # print(existing_ids)
             # print(f"\n self.update_queries: {self.update_queries}")
             if not self.update_queries:
@@ -313,15 +325,19 @@ class QueryGenerator(QueryMapper):
         # Each pair: (chunk, context_chunks)
         # Assign a chunk_id (could be index or hash)
         pairs_with_id = []
-        print(existing_ids)
-        print(f"\n self.update_queries: {self.update_queries}")
-        print(self.ds_formatter.doc_dataset[:2])
+        # print(existing_ids)
+        # print(f"\n self.update_queries: {self.update_queries}")
+        # print(self.ds_formatter.doc_dataset[:2])
         for chunk_id, chunk, context_chunks, impl_context_chunks in self.ds_formatter.get_chunks_with_context(chain_context=chain_context, context_col=self.context_col, impl_context_col=self.impl_context_col):
             # print(chunk_id)
             if chunk_id in existing_ids and self.update_queries:
                 pairs_with_id.append((chunk_id, chunk, context_chunks, impl_context_chunks))
             elif chunk_id not in existing_ids and not self.update_queries:
                 pairs_with_id.append((chunk_id, chunk, context_chunks, impl_context_chunks))
+            # ONLY now for the quick experiment: cap at 40
+            # if len(pairs_with_id) >= 40:
+                # break
+            # TODO: REMOVE THAT CAP
                 
 
 
@@ -451,7 +467,7 @@ ASSURANCE_SCHEMA_R10 = { # same as r4
 
 class QueryAssurance(QueryMapper):
     """Goes through the generated queries and performs a check on them. Requires DataFormatter to have loaded queries."""
-    def __init__(self, query_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, prompt_template: str = "assurance_prompt_r4.j2"):
+    def __init__(self, query_formatter: DataFormatter, llm_name: str, provider: str, save_path: str, start_from_checkpoint: bool = False, save_jsonl: bool = True, prompt_template: str = ""):
         super().__init__(query_formatter, llm_name, provider, save_path, start_from_checkpoint, save_jsonl)
         self.max_tokens = 200
         self.jsonl_filename = "assurance_results"
@@ -523,10 +539,10 @@ class QueryAssurance(QueryMapper):
                 pairs_with_id.append((chunk_id, query, chunk, context_chunks, impl_context_chunks, utilized_context_chunk_ids))
 
         total = len(pairs_with_id)
-        logger.info(f"Generating queries for {total} chunks (skipping {len(existing_ids)} already processed)")
+        logger.info(f"Generating assurance results for {total} chunks (skipping {len(existing_ids)} already processed)")
 
         tasks = []
-        for chunk_id, query, chunk, context_chunks, impl_context_chunks, utilized_context_chunk_ids in tqdm(pairs_with_id, desc="Generating queries", unit="chunk"):
+        for chunk_id, query, chunk, context_chunks, impl_context_chunks, utilized_context_chunk_ids in tqdm(pairs_with_id, desc="Generating assurance results", unit="chunk"):
             fields = {
                 "chunk_id": chunk_id,
                 "query": query,
@@ -538,7 +554,7 @@ class QueryAssurance(QueryMapper):
             tasks.append(self.get_result(fields))
 
         completed = 0
-        for coro in atqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing generated queries", unit="query"):
+        for coro in atqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Processing queries for assurance", unit="query"):
             result = await coro
             self.queries.append(result)
             completed += 1
@@ -546,5 +562,5 @@ class QueryAssurance(QueryMapper):
                 self._save()
         # Final save
         self._save()
-        logger.info("Done generating queries.")
+        logger.info("Done generating assurance results.")
 

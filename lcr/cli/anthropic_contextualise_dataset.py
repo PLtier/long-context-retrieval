@@ -11,12 +11,12 @@ app = typer.Typer()
 
 
 async def contextualise_dataset_async(
-    contextualisation_model: str = "qwen/qwen-2.5-7b-instruct",
+    contextualisation_model: str = "",
     chunks_path: str = ".",
     save_dir: str = "./contextualised_datasets",
-    provider: str = "openrouter",
+    provider: str = "",
     start_from_checkpoint: bool = False,
-    max_concurrent: int = 50,
+    max_concurrent: int = 64,
 ):
     ds_formatter = DataFormatter()
     ds_formatter.load_from_jsonl(chunks_path, query_or_dataset="documents")
