@@ -25,6 +25,7 @@ def eval(
     encoder: str = "sentence",  # "sentence" | "flag" | "bm25"
     encoding_type: str = "dense",  # "dense" | "sparse", only applicable if encoder is "flag"
     spacy_model: str = "",  # required when encoder is "bm25" (e.g. "da_core_news_sm")
+    batch_size: int = 32,  # only applicable for "sentence" and semantic embeddrs
 ):
     if queries_path == "" or results_jsonl_path == "" or chunks_path == "":
         print("Please provide all required arguments: --queries-path, --chunks-path, and --results-jsonl-path")
@@ -38,11 +39,11 @@ def eval(
         return
 
     if encoder == "flag":
-        embedder = BGEM3Embedder(model_name=model_path, batch_size=32, device=DEVICE, encoding_type=encoding_type)
+        embedder = BGEM3Embedder(model_name=model_path, batch_size=batch_size, device=DEVICE, encoding_type=encoding_type)
     elif encoder == "bm25":
         embedder = BM25Embedder(spacy_model=spacy_model)
     else:
-        embedder = SentenceTransformerEmbedder(SentenceTransformer(model_path, trust_remote_code=True, device=DEVICE), batch_size=128, device=DEVICE, add_prefix=use_prefix)
+        embedder = SentenceTransformerEmbedder(SentenceTransformer(model_path, trust_remote_code=True, device=DEVICE), batch_size=batch_size, device=DEVICE, add_prefix=use_prefix)
 
     ds_formatter = DataFormatter()
     ds_formatter.load_from_jsonl(queries_path, query_or_dataset="queries")
