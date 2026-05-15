@@ -34,13 +34,13 @@ MERGED_DIR="$PROCESSED_BASE/merged"
 # bash scripts/merge.sh "$PROCESSED_BASE" "$MERGED_DIR" augmented_chunks.jsonl
 # bash scripts/merge.sh "$RAW_BASE"       "$MERGED_DIR" chunks.jsonl
 
-# # Drop query-generation failures (rows with `query=="<QUERY_GENERATION_FAILURE>"`).
-# echo "Filtering out query generation failures..."
+# # # Drop query-generation failures (rows with `query=="<QUERY_GENERATION_FAILURE>"`).
+# # echo "Filtering out query generation failures..."
 # python3 lcr/cli/filter_queries.py drop-failures \
 #     --queries-path "$MERGED_DIR/queries.jsonl" \
 #     --output-path "$MERGED_DIR/successful_queries.jsonl"
 
-# # Stage 1: dense (bge-m3) + sparse (BM25) retrieval over plain chunks, with all queries
+# # # Stage 1: dense (bge-m3) + sparse (BM25) retrieval over plain chunks, with all queries
 # echo "Running dense and sparse retrieval evaluation on all queries..."
 # bash scripts/eval_gpu.sh \
 #     "$MERGED_DIR/chunks_bge-m3_dense_results.jsonl" \
@@ -54,7 +54,7 @@ MERGED_DIR="$PROCESSED_BASE/merged"
 #     "$MERGED_DIR/successful_queries.jsonl" \
 #     "$SPACY_MODEL"
 
-# Stage 2a:rank-filter — keep queries hard for both retrievers (saves LLM cost on Stage 2b)
+# # Stage 2a:rank-filter — keep queries hard for both retrievers (saves LLM cost on Stage 2b)
 # echo "Filtering queries to find hard subset for assurance..."
 # bash scripts/rank_filter_queries.sh \
 #     "$MERGED_DIR/successful_queries.jsonl" \
@@ -82,15 +82,15 @@ MERGED_DIR="$PROCESSED_BASE/merged"
 #     "$MERGED_DIR/contextual_queries.jsonl"
 
 # # Stage 3: dense + sparse retrieval over augmented chunks, contextual queries only
-# echo "Running dense and sparse retrieval evaluation on contextual queries and augmented chunks..."
-# bash scripts/eval_gpu.sh \
-#     "$MERGED_DIR/augmented_chunks_bge-m3_dense_results.jsonl" \
-#     "$MERGED_DIR/augmented_chunks.jsonl" \
-#     "$MERGED_DIR/contextual_queries.jsonl" \
-#     dense
+echo "Running dense and sparse retrieval evaluation on contextual queries and augmented chunks..."
+bash scripts/eval_gpu.sh \
+    "$MERGED_DIR/augmented_chunks_bge-m3_dense_results.jsonl" \
+    "$MERGED_DIR/augmented_chunks.jsonl" \
+    "$MERGED_DIR/contextual_queries.jsonl" \
+    dense
 
-# bash scripts/eval_bm25.sh \
-#     "$MERGED_DIR/augmented_chunks_bm25_results.jsonl" \
-#     "$MERGED_DIR/augmented_chunks.jsonl" \
-#     "$MERGED_DIR/contextual_queries.jsonl" \
-#     "$SPACY_MODEL"
+bash scripts/eval_bm25.sh \
+    "$MERGED_DIR/augmented_chunks_bm25_results.jsonl" \
+    "$MERGED_DIR/augmented_chunks.jsonl" \
+    "$MERGED_DIR/contextual_queries.jsonl" \
+    "$SPACY_MODEL"
