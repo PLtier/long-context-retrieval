@@ -16,8 +16,8 @@ class SentenceTransformerEmbedder(Embedder):
         self.model = model
         self.show_progress_bar = show_progress_bar
         self.batch_size = batch_size
-        self.query_prompt = "search_query: " if add_prefix else ""
-        self.doc_prompt = "search_document: " if add_prefix else ""
+        self.query_prompt = "query: " if add_prefix else ""
+        self.doc_prompt = "passage: " if add_prefix else ""
 
     def embed_queries(self, queries):
         return self.model.encode(
