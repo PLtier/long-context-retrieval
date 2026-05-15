@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 from loguru import logger
 import typer
@@ -48,9 +49,22 @@ def drop_failures(
     """
     queries = _load_jsonl(queries_path)
     kept = [r for r in queries if r.get("query") != "<QUERY_GENERATION_FAILURE>"]
+
     dropped = len(queries) - len(kept)
     logger.info(f"input queries:   {len(queries)}")
     logger.info(f"dropped (failed):{dropped}")
+
+    # also, an addon for polish dataset: drop queries for target chunks with end with ":" or start with "-"
+    def startswith_hyphen(chunk: str) -> bool:
+        """checks if the chunk starts with: ^(Art\.)? ?([\d\w]+)?\.? ?([\d\w]+[\.\)])? ?-"""
+        pattern = r"^(Art\.)? ?([\d\w]+)?\.? ?([\d\w]+[\.\)])? ?-"
+        return re.match(pattern, chunk) is not None
+
+    if "polish" in queries_path.lower():
+        before = len(kept)
+        kept = [r for r in kept if not (r["chunk"].endswith(":") or startswith_hyphen(r["chunk"]))]
+        logger.info(f"additionally dropped {before - len(kept)} queries with invalid chunk_ids")
+
     logger.info(f"kept:            {len(kept)}")
     _write_jsonl(output_path, kept)
     logger.info(f"wrote {output_path}")
