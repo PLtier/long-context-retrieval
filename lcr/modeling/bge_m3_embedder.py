@@ -12,19 +12,17 @@ class BGEM3Embedder(Embedder):
         self,
         model_name: str = "BAAI/bge-m3",
         use_fp16: bool = True,
-        batch_size: int = 128,
+        batch_size: int = 16,
         encoding_type: str = "dense",  # "dense" | "sparse"
         device: str = "cpu",
     ):
         super().__init__(is_contextual_model=False, device=device)
-        self.model = BGEM3FlagModel(model_name, use_fp16=use_fp16, device=device, )
-        self.batch_size = batch_size
+        self.model = BGEM3FlagModel(model_name, use_fp16=use_fp16, device=device, batch_size=batch_size)
         self.encoding_type = encoding_type
 
     def _encode(self, texts):
         return self.model.encode(
             texts,
-            batch_size=self.batch_size,
             return_dense=(self.encoding_type == "dense"),
             return_sparse=(self.encoding_type == "sparse"),
             return_colbert_vecs=False,
