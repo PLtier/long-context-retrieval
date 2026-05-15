@@ -153,7 +153,7 @@ class DataFormatter():
                                 # the original results were with the bug:
                                 if impl_id not in context_cimplicit_context:
                                 # it led to constant overwriting, so the implicit context was linked with the last context chunk that had it - again, implicit context was ALWAYS though in the prompt.
-                                # correct should be below, but for the reproducibility we leave that bug.
+                                # correct should be below, but for the reproducibility we leave that bug. 
                                 # if text not in context_implicit_context:
                                     context_implicit_context[text] = []
                                 context_implicit_context[text].append(context_id)
