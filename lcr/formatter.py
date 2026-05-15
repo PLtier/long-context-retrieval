@@ -150,7 +150,11 @@ class DataFormatter():
                                 if impl_id in chunk_lookup : # check if impl_id is valid and not already added
                                     impl_context_chunk = chunk_lookup[impl_id]
                                     text = impl_context_chunk[col]
-                                if impl_id not in context_implicit_context:
+                                # the original results were with the bug:
+                                if impl_id not in context_cimplicit_context:
+                                # it led to constant overwriting, so the implicit context was linked with the last context chunk that had it - again, implicit context was ALWAYS though in the prompt.
+                                # correct should be below, but for the reproducibility we leave that bug.
+                                # if text not in context_implicit_context:
                                     context_implicit_context[text] = []
                                 context_implicit_context[text].append(context_id)
             context_implicit_context_str = ""
